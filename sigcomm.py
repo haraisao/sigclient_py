@@ -623,6 +623,9 @@ class SigDataCommand(SigCmdMarshaller):
       print "Error in parseCommand"
       return False
    
+  def getRemains(self):
+    return self.buffer[self.offset:]
+
   def setHeader(self, type, n=1, seq=0, flag=0, to='', radius=-1.0,name=None):
     if self.encbuf : del self.encbuf
     self.createCommand()

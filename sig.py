@@ -172,7 +172,7 @@ class SigCmdHandler:
       pass
 
     elif self.command.type == cmdDataType['COMM_INVOKE_CONTROLLER_ON_COLLISION'] :
-      self.comm.invokeOnCollision(cmd)
+      self.comm.invokeOnCollision(self.command.getRemains())
       pass
 
     else:
@@ -643,7 +643,8 @@ class SigController(SigClient):
     return
 
   def invokeOnCollision(self, data):
-    evt = SigCollisionEvet(data)
+    evt = SigCollisionEvent(data)
+    evt.parse()
     self.onCollision(evt)
     return
 
@@ -680,10 +681,22 @@ class SigController(SigClient):
 class SigCollisionEvent:
   def __init__(self, data):
     self.parser = SigCmdMarshaller(data)
+#    self.parser.printPacket(data)
     self.withVals = []
     self.withParts = []
     self.myParts = []
  
+  def parse(self):
+    currentTime=self.parser.unmarshalDouble() 
+    wn=self.parser.unmarshalUShort() 
+    for i in range(wn):
+      wi=self.parser.unmarshalString()
+      wv, wp, mp, sp = wi.split(":")
+      self.withVals.append(wv)
+      self.withParts.append(wp)
+      self.myParts.append(mp)
+    return 
+
   def getWith(self):
     return self.withVals
 
