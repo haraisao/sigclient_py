@@ -5,6 +5,8 @@
 import sys
 import os
 import time
+import types
+from Quat import *
 from sigcomm import *
 
 
@@ -29,7 +31,7 @@ class SigCmdReader(SigCommReader):
       return 0
 
     elif res == 0:
-      print "Not enough data!!"
+#      print "Not enough data!!"
       return 0
 
     elif res == -1:
@@ -68,11 +70,18 @@ class SigDataReader(SigCommReader):
       elif cmd == cmdDataType['REQUEST_SET_ENTITY_POSITION']:
         pass
 
+      elif cmd == cmdDataType['REQUEST_GET_ENTITY_ROTATION']:
+        self.setObjRotation(self.buffer)
+
+      elif cmd == cmdDataType['REQUEST_SET_ENTITY_ROTATION']:
+        pass
+
       elif cmd == "cmd:%d" % cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT']:
         print "[INFO] Connect DataPort"
         pass
 
       else:
+        print "cmd ==> %d" % (cmd)
         self.printPacket(self.buffer)
         pass
 
@@ -95,7 +104,20 @@ class SigDataReader(SigCommReader):
       self.getSimObj().setCurrentPosition(x, y, z)
     else:
       print "Fail to getPosition" 
+    return
 
+  def setObjRotation(self, data):
+    self.parser.setBuffer(data)
+    sucess = self.parser.unmarshalBool()
+    qw = self.parser.unmarshalDouble()
+    qx = self.parser.unmarshalDouble()
+    qy = self.parser.unmarshalDouble()
+    qz = self.parser.unmarshalDouble()
+
+    if sucess :
+      self.getSimObj().setCurrentRotation(qw, qx, qy, qz)
+    else:
+      print "Fail to getRotation" 
     return
 
   def setCommand(self, cmd):
@@ -147,6 +169,10 @@ class SigCmdHandler:
 
     elif self.command.type == cmdDataType['COMM_RESULT_ATTACH_CONTROLLER'] :
       print "[INFO] Controller Attached"
+      pass
+
+    elif self.command.type == cmdDataType['COMM_INVOKE_CONTROLLER_ON_COLLISION'] :
+      self.comm.invokeOnCollision(cmd)
       pass
 
     else:
@@ -267,20 +293,63 @@ class SigObjPart:
   def setPos(self, x, y, z):
     self.pos=[x,y,z]
 
-  def setQuaternion(self, q1, q2, q3, q4):
-    self.quaternion=[q1,q2,q3,q4]
+  def getPos(self):
+    return self.pos
+
+  def pos_val(self, idx, val=None):
+    if idx in (0, 1, 2):
+      if type(val) in (types.IntType, types.FloatType) :
+        self.pos[idx] = val
+      return self.pos[idx]
+    else:
+      raise NameError, idx
+
+  def x(self, val=None):
+    return self.pos_val(0, val)
+
+  def y(self, val=None):
+    return self.pos_val(1, val)
+
+  def z(self, val=None):
+    return self.pos_val(2, val)
+
+  def setQuaternion(self, qw, qx, qy, qz):
+    self.quaternion=[qw, qx, qy, qz]
+
+  def getQuaternion(self):
+    return self.quaternion
+
+  def quaternion_val(self, idx, val=None):
+    if idx in (0, 1, 2, 3):
+      if type(val) in (types.IntType, types.FloatType) :
+        self.quaternion[idx] = val
+      return self.quaternion[idx]
+    else:
+      raise NameError, idx
+
+  def qw(self, val=None):
+    return self.quaternion_val(0, val)
+
+  def qx(self, val=None):
+    return self.quaternion_val(1, val)
+
+  def qy(self, val=None):
+    return self.quaternion_val(2, val)
+
+  def qz(self, val=None):
+    return self.quaternion_val(3, val)
+
 
 #
 #  SimObj
 #
-class SigObj:
+class SigSimObj:
   def __init__(self, name, ctrl):
     self.cmdbuf=SigDataCommand()
     self.name=name
     self.parts = {}
     self.attributes = {}
     self.updateTime=0.0
-    self.currentPos=None
     self.controller = ctrl
  
   def getObj(self):
@@ -288,14 +357,15 @@ class SigObj:
     self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
 
   def setCurrentPosition(self, x, y, z):
-    self.currentPos=(x, y, z)
+    self.parts['body'].setPos(x, y, z)
     return 
 
   def setPosition(self, x, y, z):
+    self.parts['body'].setPos(x, y, z)
     self.cmdbuf.createCommand()
     name = self.name+','
     size = len(name) + struct.calcsize("HH")+struct.calcsize("ddd")
-    self.cmdbuf.marshalUShort(15)
+    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_SET_ENTITY_POSITION'])
     self.cmdbuf.marshalUShort(size)
     self.cmdbuf.marshalDouble(x)
     self.cmdbuf.marshalDouble(y)
@@ -308,7 +378,42 @@ class SigObj:
     self.cmdbuf.createCommand()
     name = self.name+','
     size = len(name) + struct.calcsize("HH")
-    self.cmdbuf.marshalUShort(17)
+    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_GET_ENTITY_POSITION'])
+    self.cmdbuf.marshalUShort(size)
+    self.cmdbuf.copyString(name)
+    self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
+    return
+
+  def setCurrentRotation(self, qw, qx, qy, qz):
+    self.parts['body'].setQuaternion(qw, qx, qy, qz)
+    return 
+
+  def setRotation(self, qw, qx, qy, qz, abs=1):
+    self.parts['body'].setQuaternion(qw, qx, qy, qz)
+    self.cmdbuf.createCommand()
+    name = self.name+','
+    size = len(name) + struct.calcsize("HHH")+struct.calcsize("dddd")
+    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_SET_ENTITY_ROTATION'])
+    self.cmdbuf.marshalUShort(size)
+    self.cmdbuf.marshalUShort(abs)
+    self.cmdbuf.marshalDouble(qw)
+    self.cmdbuf.marshalDouble(qx)
+    self.cmdbuf.marshalDouble(qy)
+    self.cmdbuf.marshalDouble(qz)
+    self.cmdbuf.copyString(name)
+    self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
+    return 
+
+  def setAxisAndAngle(self, x, y, z, ang):
+    quat = Quat(x, y, z, ang)
+    self.setRotation(quat.w, quat.x, quat.y, quat.z)
+    return
+
+  def updateRotation(self):
+    self.cmdbuf.createCommand()
+    name = self.name+','
+    size = len(name) + struct.calcsize("HH")
+    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_GET_ENTITY_ROTATION'])
     self.cmdbuf.marshalUShort(size)
     self.cmdbuf.copyString(name)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
@@ -317,7 +422,33 @@ class SigObj:
   def getPosition(self):
     self.updatePosition()
     self.controller.waitForReply()
-    return self.currentPos
+    return self.parts['body'].getPos()
+
+  def getRotation(self):
+    self.updateRotation()
+    self.controller.waitForReply()
+    return self.parts['body'].getQuaternion()
+
+  def x(self, val=None):
+    return self.parts['body'].x(val)
+
+  def y(self, val=None):
+    return self.parts['body'].y(val)
+
+  def z(self, val=None):
+    return self.parts['body'].z(val)
+
+  def qw(self, val=None):
+    return self.parts['body'].qw(val)
+
+  def qx(self, val=None):
+    return self.parts['body'].qx(val)
+
+  def qy(self, val=None):
+    return self.parts['body'].qy(val)
+
+  def qz(self, val=None):
+    return self.parts['body'].qz(val)
 
   def setAttributes(self, data):
     attr = SigCmdMarshaller(data)
@@ -443,7 +574,7 @@ class SigController(SigClient):
     try:
       return self.objs[name]
     except:
-      obj = SigObj(name, self)
+      obj = SigSimObj(name, self)
       obj.getObj()
       self.objs[name] = obj
     return obj
@@ -456,7 +587,7 @@ class SigController(SigClient):
     with self.mutex:
       self.request_obj = val
 
-  def getObj(self, name=None):
+  def getObj(self, name=None, waitFlag=1):
     if name is None : name = self.name
     try:
       return self.objs[name]
@@ -464,8 +595,10 @@ class SigController(SigClient):
       self.setRequest(True)
       self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_GET_ENTITY'], name=name)
       self.sendCmd(self.cmdbuf.getEncodedCommand())
-      while self.checkRequest() :
-        pass
+      if waitFlag :
+        while self.checkRequest() :
+          pass
+
       try:
         return self.objs[name]
       except:
@@ -490,7 +623,7 @@ class SigController(SigClient):
       klass=self.cmdbuf.unmarshalString()
 #      print "datalen=%d, id=%d , name=%s, class=%s" % (datalen, id, name, klass)
 
-      obj = SigObj(name, self)
+      obj = SigSimObj(name, self)
       obj.updateTime = m_time
 
       attached = self.cmdbuf.unmarshalUShort()
@@ -507,6 +640,11 @@ class SigController(SigClient):
       self.objs[name] = obj
 
     self.setRequest(False)
+    return
+
+  def invokeOnCollision(self, data):
+    evt = SigCollisionEvet(data)
+    self.onCollision(evt)
     return
 
   def setStartTime(self, tm):
@@ -537,4 +675,21 @@ class SigController(SigClient):
     if self.ec :
       self.ec.stop()
       self.ec = None
+
+
+class SigCollisionEvent:
+  def __init__(self, data):
+    self.parser = SigCmdMarshaller(data)
+    self.withVals = []
+    self.withParts = []
+    self.myParts = []
+ 
+  def getWith(self):
+    return self.withVals
+
+  def getWithParts(self):
+    return self.withParts
+
+  def getMyParts(self):
+    return self.myParts
 

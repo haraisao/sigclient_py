@@ -435,7 +435,7 @@ class SigCmdMarshaller:
             self.cmdsize = 0
             return -2
         else:
-          print "Short Packet %d/%d" % (bufsize, size)
+#          print "Short Packet %d/%d" % (bufsize, size)
           return 0
 
       else:
