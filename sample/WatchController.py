@@ -13,10 +13,6 @@ import math
 #
 class WatchController(sig.SigController):
   def onInit(self, evt):
-#    try:
-#     obj = self.getObj()
-#    except:
-#      print "ERROR"
     return
 
   def onAction(self, evt):
@@ -26,7 +22,6 @@ class WatchController(sig.SigController):
     try:
      obj = self.getObj()
      value = evt.getMsg()
-     print value
      angle = int(value)
      if angle <= 180 and angle >= -180 :
        obj.setAxisAndAngle(0, 1.0, 0, math.radians(angle))

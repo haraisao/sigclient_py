@@ -1,5 +1,9 @@
 #
+#  SIGVerse Client Library
 #  Communication Adaptor for SIGVerse
+#
+#   Copyright(C) 2014, Isao Hara, AIST
+#   Release under the MIT License.
 #
 
 import sys
@@ -9,10 +13,12 @@ import select
 import time
 import threading
 import struct
-
+from sig import *
 
 #
 # Raw Socket Adaptor
+#
+#   threading.Tread <--- SocketAdaptor
 #
 class SocketAdaptor(threading.Thread):
   def __init__(self, reader, name, host, port):
@@ -41,21 +47,26 @@ class SocketAdaptor(threading.Thread):
       self.close()
       return 0
     except:
-      print "Error in connect"
+      print "Error in connect " , self.host, self.port
       self.close()
       return -1
 
-    print "Start read thread"
+    print "Start read thread ",self.name
     self.mainloop = True
     self.start()
 
     return 1
 
+  #
+  #  Wait for comming data...
+  #
   def wait_for_read(self, timeout=0.1):
     try:
       rready, wready, xready = select.select([self.socket],[],[], timeout)
 
-      if len(rready) : return 1
+      if len(rready) :
+#        print "Ready to read:",self.name
+        return 1
       return 0
     except:
       print "Error in wait_for_read"
@@ -68,18 +79,18 @@ class SocketAdaptor(threading.Thread):
   def receive_data(self):
     data = None
     try:
-      rready, wready, xready = select.select([self.socket],[],[], 1.0)
-
-      if len(rready) :
-        data = self.socket.recv(4096)  # buffer size = 1024
+#      rready, wready, xready = select.select([self.socket],[],[], 1.0)
+#      if len(rready) :
+      if self.wait_for_read(1.0) == 1  :
+        data = self.socket.recv(8192)     # buffer size = 1024 * 8
         if len(data) != 0:
           return data
         else:
           return  -1
 
-    except socket.timeout:
-      pass
-
+#    except socket.timeout:
+#      pass
+#
     except socket.error:
       print "socket.error in recieve_data"
       self.terminate()
@@ -89,7 +100,7 @@ class SocketAdaptor(threading.Thread):
       self.terminate()
 
     return data
-
+  #
   #  Background job ( message reciever )
   #
   def run(self):
@@ -98,11 +109,20 @@ class SocketAdaptor(threading.Thread):
 
       if data  == -1:
         self.terminate()
+
       elif data :
         self.reader.parse(data)
 
-    print "Read thread terminated"
+      elif data is None :
+        pass
+
+      else :
+        print "Umm...:",self.name
+        print data
+
+    print "Read thread terminated:",self.name
   #
+  #  close socket
   #
   def close(self):
     if self.socket :
@@ -291,12 +311,21 @@ class SigCommReader:
     self.mgsHandler = None
     self.dataHandler = None
 
+  #
+  #  parse recieved data, called by SocketAdaptor
+  #
   def parse(self, data):
     self.appendBuffer( data )
 
+  #
+  #  Usually 'owner' is a controller
+  #
   def setOwner(self, owner):
     self.owner = owner
 
+  #
+  #  Buffer
+  #
   def setBuffer(self, buffer):
     if self.buffer : del self.buffer
     self.buffer=buffer
@@ -307,14 +336,21 @@ class SigCommReader:
     self.buffer += buffer
     self.bufsize = len(self.buffer)
 
-  def printPacket(self, data):
-    if data :
-      for x in data:
-        print "0x%02x" % ord(x), 
-      print
-    else:
-      print "No command"
+  def skipBuffer(self, n=4, flag=1):
+    self.current += n
+    if flag :
+      self.buffer = self.buffer[self.current:]
+      self.current = 0
+    return 
 
+  def clearBuffer(self):
+    if self.buffer : del self.buffer
+    self.buffer = ""
+    self.current = 0
+
+  #
+  #  extract data from self.buffer 
+  #
   def read(self, nBytes, delFlag=1):
     start = self.current
     end = start + nBytes
@@ -330,42 +366,22 @@ class SigCommReader:
       self.current =  0
     return data
 
-  def skipBuffer(self, n=4, flag=1):
-    self.current += n
-    if flag :
-      self.buffer = self.buffer[self.current:]
-      self.current = 0
-    return 
-
-  def clearBuffer(self):
-    if self.buffer : del self.buffer
-    self.buffer = ""
-    self.current = 0
-
-class SigMsgEvent: 
-  def __init__(self, msg):
-    self.allmessgae = msg
-    self.sender = ""
-    self.size = 0
-    self.message = ""
-    self.parse(msg)
-
-  def parse(self, msg):
-    pos1 = msg.find(',')
-    self.sender = msg[:pos1]
-    pos2 = msg.find(',', pos1+1)
-    self.size = int(msg[pos1+1:pos2])
-    self.message = msg[pos2+1:pos2+1+self.size]
-
-  def getSender(self):
-    return self.sender
-
-  def getMsg(self):
-    return self.message
+  #
+  # print buffer (for debug)
+  #
+  def printPacket(self, data):
+    if data :
+      for x in data:
+        print "0x%02x" % ord(x), 
+      print
+    else:
+      print "No command"
 
 #
 #  Controoller base class for SIGVeerse
 #    The custom cotroller should be inherit this class.
+#
+#   threading.Tread <--- SigController
 #
 class SigControllerEC(threading.Thread):
   def __init__(self, ctrl, intval=1.0):
@@ -387,7 +403,7 @@ class SigControllerEC(threading.Thread):
 #
 # Marshal/Unmarshal command packet for SIGVerse
 #
-class SigCmdMarshaller:
+class SigMarshaller:
   def __init__(self, buffer):
     self.buffer=buffer
     self.offset=0
@@ -399,7 +415,11 @@ class SigCmdMarshaller:
 
     self.encbuf=None
     self.encpos=0
-
+    self.cmd_header='\xab\xcd\x00\x00'
+    self.cmd_footer='\xdc\xba'
+  #
+  #  for buffer
+  #
   def setBuffer(self, buffer):
     if self.buffer : del self.buffer
     self.buffer=buffer
@@ -416,6 +436,9 @@ class SigCmdMarshaller:
     self.buffer += buffer
     self.bufsize = len(self.buffer)
 
+  #
+  #  check command format...  (0xabcd size_of_message encoded_command 0xdcba)
+  #
   def checkDataCommand(self, buffer, offset=0):
     bufsize = len(buffer)
 
@@ -444,25 +467,9 @@ class SigCmdMarshaller:
 
     print "---> %d - %d <=%d" % ( bufsize, offset, self.cmdheaderMarshaller.size)
     return 0
-
-  def checkMessageCommand(self, buffer, offset=0):
-    (cmd,) =  struct.unpack_from('!H', buffer, offset)
-    offset += struct.calcsize('!H')
-    if cmd == cmdType['START_SIM'] : 
-      offset += offset % 4
-      (startTime,) =  struct.unpack_from('d', buffer, offset)
-      return (cmd, startTime, offset+struct.calcsize('d'))
-
-    elif cmd == cmdType['STOP_SIM'] : 
-      return (cmd, offset)
-
-    elif cmd == cmdType['SEND_MESSAGE'] : 
-      (size,) =  struct.unpack_from('!H', buffer, offset)
-      offset += struct.calcsize('!H')
-      return (cmd, size, offset)
-
-    return None
-
+  #
+  # extract command from buffer
+  #
   def getCommand(self, buffer=None, offset=0):
     if buffer: self.buffer = buffer
     res =  self.checkDataCommand(self.buffer, offset)
@@ -483,15 +490,44 @@ class SigCmdMarshaller:
       self.skipBuffer()
       return None
 
+  #
+  #  skip buffer, but not implemented....
+  #
   def skipBuffer(self):
       print "call skipBuffer"
       return 
+  #
+  #  check message format (cmd encoded_args)
+  #
+  def checkMessageCommand(self, buffer, offset=0):
+    (cmd,) =  struct.unpack_from('!H', buffer, offset)
+    offset += struct.calcsize('!H')
+    if cmd == cmdType['START_SIM'] : 
+      offset += offset % 4
+      (startTime,) =  struct.unpack_from('d', buffer, offset)
+      return (cmd, startTime, offset+struct.calcsize('d'))
 
+    elif cmd == cmdType['STOP_SIM'] : 
+      return (cmd, offset)
+
+    elif cmd == cmdType['SEND_MESSAGE'] : 
+      (size,) =  struct.unpack_from('!H', buffer, offset)
+      offset += struct.calcsize('!H')
+      return (cmd, size, offset)
+
+    return None
+
+  #
+  #  print buffer for debug
+  #
   def printPacket(self, data):
     for x in data:
       print "0x%02x" % ord(x), 
     print
 
+  #
+  #  dencoding data
+  # 
   def unmarshalString(self, offset=-1):
     if offset < 0 : offset=self.offset
     try:
@@ -535,7 +571,10 @@ class SigCmdMarshaller:
     except:
       print "Error in unmarshalBool"
       return None
-     
+
+  #
+  #  generate command
+  #
   def createCommand(self):
     self.encbuf=bytearray('\xab\xcd\x00\x06\xdc\xba')
     self.encpos=4 
@@ -549,14 +588,15 @@ class SigCmdMarshaller:
     return str(self.encbuf)
 
   def getEncodedDataCommand(self):
-#    self.printPacket( str(self.encbuf[4:-2]) )
     return str(self.encbuf[4:-2])
 
   def clearEncodedCommand(self):
     if self.encbuf : del self.encbuf
     self.encbuf=None
     return
-
+  #
+  #  encoding data
+  # 
   def marshalNumericData(self, fmt, s):
     enc_code = bytearray( struct.calcsize(fmt))
     struct.pack_into(fmt, enc_code, 0, s)
@@ -571,6 +611,12 @@ class SigCmdMarshaller:
 
   def marshalDouble(self, d):
     self.marshalNumericData('d', d)
+
+  def marshalBool(self, d):
+    if d :
+      self.marshalNumericData('B', 0)
+    else :
+      self.marshalNumericData('B', 0)
 
   def marshalString(self, str):
     size=len(str)
@@ -588,6 +634,9 @@ class SigCmdMarshaller:
     self.encbuf = self.encbuf[:-2]+enc_code+self.encbuf[-2:]
     self.encpos += encsize
 
+  #
+  # another marshaling string
+  #
   def copyString(self, str):
     size=len(str)
     enc_code = bytearray( size )
@@ -598,11 +647,12 @@ class SigCmdMarshaller:
     self.encpos += size
 
 #
+#  marshalling command 
+#     SigMarshaller <--- SigDataCommand
 #
-#
-class SigDataCommand(SigCmdMarshaller):
+class SigDataCommand(SigMarshaller):
   def __init__(self, buffer=''):
-    SigCmdMarshaller.__init__(self, buffer)
+    SigMarshaller.__init__(self, buffer)
     self.headerMarshaller=struct.Struct('!HHHH') ## type, packetNum, seq, fowardFlags. 
     self.type = 0
     self.packetNum = 0
@@ -611,6 +661,10 @@ class SigDataCommand(SigCmdMarshaller):
     self.forwardTo = ""
     self.reachRadius = -1
 
+  #
+  # for Header
+  #  (type, num_of_packet, sequence_No., foward_flag, forwarding_address, radius_to_reach_msg)
+  #
   def getHeader(self, data=None):
     try:
       if data :  self.setBuffer(data)
@@ -623,9 +677,6 @@ class SigDataCommand(SigCmdMarshaller):
       print "Error in parseCommand"
       return False
    
-  def getRemains(self):
-    return self.buffer[self.offset:]
-
   def setHeader(self, type, n=1, seq=0, flag=0, to='', radius=-1.0,name=None):
     if self.encbuf : del self.encbuf
     self.createCommand()
@@ -646,4 +697,67 @@ class SigDataCommand(SigCmdMarshaller):
     if self.forwardFlags :
       print "Forward %s" % (self.forwardTo)
  
+  #
+  #  extract remains from the buffer
+  #
+  def getRemains(self):
+    return self.buffer[self.offset:]
+
+#
+# Events
+#
+
+#
+#  Message Event ( sender, size, message, )
+#
+class SigMsgEvent: 
+  def __init__(self, msg):
+    self.allmessgae = msg
+    self.sender = ""
+    self.size = 0
+    self.message = ""
+    self.parse(msg)
+
+  def parse(self, msg):
+    pos1 = msg.find(',')
+    self.sender = msg[:pos1]
+    pos2 = msg.find(',', pos1+1)
+    self.size = int(msg[pos1+1:pos2])
+    self.message = msg[pos2+1:pos2+1+self.size]
+
+  def getSender(self):
+    return self.sender
+
+  def getMsg(self):
+    return self.message
+#
+#  Collision Event
+#     SigMarshaller <--- SigCollisionEvent
+#
+class SigCollisionEvent(SigMarshaller):
+  def __init__(self, data):
+    SigMarshaller.__init__(self, data)
+    self.withVals = []
+    self.withParts = []
+    self.myParts = []
+ 
+  def parse(self):
+    currentTime=self.unmarshalDouble() 
+    num_of_with=self.unmarshalUShort() 
+    for i in range(num_of_with):
+      str_with = self.unmarshalString()
+      with_val, with_part, my_part, sp = str_with.split(":")
+      self.withVals.append(with_val)
+      self.withParts.append(with_part)
+      self.myParts.append(my_part)
+    return 
+
+  def getWith(self):
+    return self.withVals
+
+  def getWithParts(self):
+    return self.withParts
+
+  def getMyParts(self):
+    return self.myParts
 

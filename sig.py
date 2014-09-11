@@ -1,17 +1,20 @@
 #
-#  Communication Adaptor for SIGVerse
+#   SIGVerse Client Library
+#
+#   Copyright(C) 2014, Isao Hara, AIST
+#   Release under the MIT License.
 #
 
 import sys
 import os
 import time
 import types
-from Quat import *
 from sigcomm import *
-
+from simobj import *
 
 #
 #  Reader for ControllerCmd
+#     sigcomm.SigCommReader <--- SigCmdReader
 #
 class SigCmdReader(SigCommReader): 
   def __init__(self, owner):
@@ -22,8 +25,13 @@ class SigCmdReader(SigCommReader):
     self.cmdHandler = dhndlr
     self.msgHandler = mhndlr
 
+  #
+  # check command format and invoke 
+  #
   def checkCommand(self):
     res = self.parser.checkDataCommand(self.buffer, self.current)
+#    print "checkCommand:", res
+
     if res > 0:
       if self.cmdHandler :
 #        print "Invoke Handler %d, %d" % (res, len(self.buffer))
@@ -31,11 +39,12 @@ class SigCmdReader(SigCommReader):
       return 0
 
     elif res == 0:
-#      print "Not enough data!!"
+      print "Not enough data!!"
       return 0
 
     elif res == -1:
       res = self.parser.checkMessageCommand(self.buffer, self.current)
+#      print "checkCommand:checkMessageCommand", res
       if res is None:
         print "Invalid reply!!"
         self.printPacket(self.buffer)
@@ -48,19 +57,25 @@ class SigCmdReader(SigCommReader):
       print "Unknown error", res
       return -1
 
+  #
+  # overwrite 'parse'
+  #
   def parse(self, data):
     SigCommReader.parse(self, data)
     self.checkCommand()
     
 #
 #  Reader for ControllerData
+#     sigcomm.SigCommReader <--- SigDataReader
 #
 class SigDataReader(SigCommReader): 
   def __init__(self, owner):
     SigCommReader.__init__(self, owner)
-#    self.handler = SigDataHandler(self)
     self.command = []
 
+  #
+  # check command format and invoke 
+  #
   def checkCommand(self):
     try:
       cmd = self.command.pop(0)
@@ -90,6 +105,9 @@ class SigDataReader(SigCommReader):
 
     self.clearBuffer()
 
+  #
+  #  commands...
+  # 
   def getSimObj(self):
     return self.owner.getObj()
 
@@ -120,9 +138,14 @@ class SigDataReader(SigCommReader):
       print "Fail to getRotation" 
     return
 
+  #
+  #  for synchronization
+  #
   def setCommand(self, cmd):
     self.command.append(cmd)
 
+  #
+  #
   def setMsg(self, msg):
     res = self.parser.checkDataCommand(msg)
     cmd = -1
@@ -139,8 +162,9 @@ class SigDataReader(SigCommReader):
     if cmd == -1 :
       print "Invalid command..." 
       self.printPacket(msg)
-
-
+  #
+  # overwrite 'parse'
+  #
   def parse(self, data):
     SigCommReader.parse(self, data)
     self.checkCommand()
@@ -187,25 +211,39 @@ class SigMessageHandler:
     self.reader = rdr
     self.comm = rdr.owner
 
+  #
+  # simulation is started
+  #
   def startSim(self,msg):
       size = msg[2] + msg[2] % 4
       data = self.reader.read(size, 1)
       self.comm.setStartTime(msg[1])
       self.comm.start()
 
+  #
+  # simulation is stopped
+  #
   def stopSim(self,msg):
       size = msg[1] + msg[1] % 4
       data = self.reader.read(size, 1)
       self.comm.stop()
 
+  #
+  #  call onRecvMsg function of a controller
+  #
   def sendMsg(self,msg):
       padding_size = (msg[2] + msg[1] ) % 4
       data = self.reader.read(msg[2], 1)
       message = self.reader.read(msg[1], 1)
       if padding_size > 0:
         self.reader.read(padding_size, 1)
-      self.comm.onRecvMsg(SigMsgEvent(message))    
+#      self.comm.onRecvMsg(SigMsgEvent(message))    
+      thr = threading.Thread(target=runOnRecvMsg, args=(self.comm, message))    
+      thr.start()
 
+  #
+  # called by SigCmdReader
+  #
   def invoke(self, msg):
     if msg[0] == cmdType['START_SIM']:
       self.startSim(msg)
@@ -217,7 +255,17 @@ class SigMessageHandler:
       self.reader.printPacket(cmd)
 
 #
-#  Foundmental clint class for SIGVerse
+#  global function for thread excution.
+#    'onRecMsg' function execute with a thread to avoid blocking read operation.
+#    This function called by the SigMessageHandler.sendMsg function.
+#
+def runOnRecvMsg(comm, msg):
+  comm.onRecvMsg(SigMsgEvent(msg))
+
+#
+#  Foundmental client class for SIGVerse:
+#    A controller has two socket commnunication ports.
+#    In this class, we called them as 'command_port' and 'data_port'.
 #
 class SigClient:
   def __init__(self, myname, host="localhost", port=9000):
@@ -233,18 +281,27 @@ class SigClient:
     self.server=host
     self.port=port
 
+  #
+  #  connect to simserver
+  #
   def connect(self):
     if self.cmdAdaptor is None:
-      self.cmdAdaptor = SocketAdaptor(self.cmdReader, self.name, self.server, self.port)
+      self.cmdAdaptor = SocketAdaptor(self.cmdReader, self.name+":cmd", self.server, self.port)
     self.cmdAdaptor.connect()
 
     if self.dataAdaptor is None:
-      self.dataAdaptor = SocketAdaptor(self.dataReader, self.name, self.server, self.port)
+      self.dataAdaptor = SocketAdaptor(self.dataReader, self.name+":data", self.server, self.port)
     self.dataAdaptor.connect()
 
+  #
+  #  send command with the command_port
+  #
   def sendCmd(self, msg):
     self.cmdAdaptor.send(self.name, msg)
 
+  #
+  #  flag for waiting reply
+  #
   def setWaitForReply(self):
     self.wait_for_reply=True
 
@@ -254,13 +311,18 @@ class SigClient:
   def waitForReply(self):
     while self.wait_for_reply :
        pass
-
+  #
+  #  send command with the data_port
+  #
   def sendData(self, msg, flag=1):
     if flag :
       self.setWaitForReply()
       self.dataReader.setMsg(msg)
     self.dataAdaptor.send(self.name, msg)
 
+  #
+  #  close socket communication ports
+  #
   def terminate(self):
     self.cmdAdaptor.terminate()
     self.dataAdaptor.terminate()
@@ -269,276 +331,11 @@ class SigClient:
     self.terminate()
 
 #
-#   Attribute for SimObj
-#
-class SigObjAttribute:
-  def __init__(self, name):
-    self.name=name
-    self.value=None
-    self.valueType=None
-    self.group=None
-
-#
-#  CParts for SimObj
-#
-class SigObjPart:
-  def __init__(self,name):
-    self.name=name
-    self.id=None
-    self.type=None
-    self.pos=[0,0,0]
-    self.quaternion=[0,0,0,0]
-    self.partsValue=None
-
-  def setPos(self, x, y, z):
-    self.pos=[x,y,z]
-
-  def getPos(self):
-    return self.pos
-
-  def pos_val(self, idx, val=None):
-    if idx in (0, 1, 2):
-      if type(val) in (types.IntType, types.FloatType) :
-        self.pos[idx] = val
-      return self.pos[idx]
-    else:
-      raise NameError, idx
-
-  def x(self, val=None):
-    return self.pos_val(0, val)
-
-  def y(self, val=None):
-    return self.pos_val(1, val)
-
-  def z(self, val=None):
-    return self.pos_val(2, val)
-
-  def setQuaternion(self, qw, qx, qy, qz):
-    self.quaternion=[qw, qx, qy, qz]
-
-  def getQuaternion(self):
-    return self.quaternion
-
-  def quaternion_val(self, idx, val=None):
-    if idx in (0, 1, 2, 3):
-      if type(val) in (types.IntType, types.FloatType) :
-        self.quaternion[idx] = val
-      return self.quaternion[idx]
-    else:
-      raise NameError, idx
-
-  def qw(self, val=None):
-    return self.quaternion_val(0, val)
-
-  def qx(self, val=None):
-    return self.quaternion_val(1, val)
-
-  def qy(self, val=None):
-    return self.quaternion_val(2, val)
-
-  def qz(self, val=None):
-    return self.quaternion_val(3, val)
-
-
-#
-#  SimObj
-#
-class SigSimObj:
-  def __init__(self, name, ctrl):
-    self.cmdbuf=SigDataCommand()
-    self.name=name
-    self.parts = {}
-    self.attributes = {}
-    self.updateTime=0.0
-    self.controller = ctrl
- 
-  def getObj(self):
-    self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_GET_ENTITY'], name=self.name)
-    self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
-
-  def setCurrentPosition(self, x, y, z):
-    self.parts['body'].setPos(x, y, z)
-    return 
-
-  def setPosition(self, x, y, z):
-    self.parts['body'].setPos(x, y, z)
-    self.cmdbuf.createCommand()
-    name = self.name+','
-    size = len(name) + struct.calcsize("HH")+struct.calcsize("ddd")
-    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_SET_ENTITY_POSITION'])
-    self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.marshalDouble(x)
-    self.cmdbuf.marshalDouble(y)
-    self.cmdbuf.marshalDouble(z)
-    self.cmdbuf.copyString(name)
-    self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
-    return 
-
-  def updatePosition(self):
-    self.cmdbuf.createCommand()
-    name = self.name+','
-    size = len(name) + struct.calcsize("HH")
-    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_GET_ENTITY_POSITION'])
-    self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.copyString(name)
-    self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
-    return
-
-  def setCurrentRotation(self, qw, qx, qy, qz):
-    self.parts['body'].setQuaternion(qw, qx, qy, qz)
-    return 
-
-  def setRotation(self, qw, qx, qy, qz, abs=1):
-    self.parts['body'].setQuaternion(qw, qx, qy, qz)
-    self.cmdbuf.createCommand()
-    name = self.name+','
-    size = len(name) + struct.calcsize("HHH")+struct.calcsize("dddd")
-    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_SET_ENTITY_ROTATION'])
-    self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.marshalUShort(abs)
-    self.cmdbuf.marshalDouble(qw)
-    self.cmdbuf.marshalDouble(qx)
-    self.cmdbuf.marshalDouble(qy)
-    self.cmdbuf.marshalDouble(qz)
-    self.cmdbuf.copyString(name)
-    self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
-    return 
-
-  def setAxisAndAngle(self, x, y, z, ang):
-    quat = Quat(x, y, z, ang)
-    self.setRotation(quat.w, quat.x, quat.y, quat.z)
-    return
-
-  def updateRotation(self):
-    self.cmdbuf.createCommand()
-    name = self.name+','
-    size = len(name) + struct.calcsize("HH")
-    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_GET_ENTITY_ROTATION'])
-    self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.copyString(name)
-    self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
-    return
-
-  def getPosition(self):
-    self.updatePosition()
-    self.controller.waitForReply()
-    return self.parts['body'].getPos()
-
-  def getRotation(self):
-    self.updateRotation()
-    self.controller.waitForReply()
-    return self.parts['body'].getQuaternion()
-
-  def x(self, val=None):
-    return self.parts['body'].x(val)
-
-  def y(self, val=None):
-    return self.parts['body'].y(val)
-
-  def z(self, val=None):
-    return self.parts['body'].z(val)
-
-  def qw(self, val=None):
-    return self.parts['body'].qw(val)
-
-  def qx(self, val=None):
-    return self.parts['body'].qx(val)
-
-  def qy(self, val=None):
-    return self.parts['body'].qy(val)
-
-  def qz(self, val=None):
-    return self.parts['body'].qz(val)
-
-  def setAttributes(self, data):
-    attr = SigCmdMarshaller(data)
-
-    while attr.bufsize > attr.offset :
-      offtmp=attr.offset
-      datalen = attr.unmarshalUShort()
-      name = attr.unmarshalString()
-      group = attr.unmarshalString()
-      vallen = attr.unmarshalUShort()
-      valtype = attr.unmarshalUShort()
-      value = None
-      if valtype == typeValue['VALUE_TYPE_BOOL']:
-        value = attr.unmarshalUShort()
-        if value : value="True"
-        else : value="False"
-      elif valtype == typeValue['VALUE_TYPE_DOUBLE']:
-        value = attr.unmarshalDouble()
-      elif valtype == typeValue['VALUE_TYPE_STRING']:
-        value = attr.unmarshalString()
-      else:
-        pass
-#      print "attr datalen=%d  name=%s group=%s val_type=%d" % (datalen, name, group, valtype)
-#      print "value = ",value
-
-      self.attributes[name] = SigObjAttribute(name)
-      self.attributes[name].value = value
-      self.attributes[name].valueType = valtype
-      self.attributes[name].group = group
-      attr.offset = offtmp+datalen 
-
-  def setParts(self, data):
-    body = SigCmdMarshaller(data)
-    bodylen=body.unmarshalUShort()      
-
-    while body.bufsize > body.offset :
-      offtmp=body.offset
-      datalen=body.unmarshalUShort()      
-#      print "body datalen=%d " % (datalen)
-      id = body.unmarshalUInt()
-      type = body.unmarshalUShort()
-      name = body.unmarshalString()
-
-      self.parts[name] = SigObjPart(name)
-      self.parts[name].id = id
-
-      x = body.unmarshalDouble()
-      y = body.unmarshalDouble()
-      z = body.unmarshalDouble()
-      self.parts[name].setPos(x, y, z)
-
-      rtype = body.unmarshalUShort()
-      if rtype == 0:  # ROTATION_TYPE_QUATERNION
-        q1 = body.unmarshalDouble()
-        q2 = body.unmarshalDouble()
-        q3 = body.unmarshalDouble()
-        q4 = body.unmarshalDouble()
-        self.parts[name].setQuaternion(q1, q2, q3, q4)
-
-      extlen = body.unmarshalUShort()
-
-      if type == partType['PARTS_TYPE_BOX'] :
-        self.parts[name].type = 'PARTS_TYPE_BOX'
-        x = body.unmarshalDouble()
-        y = body.unmarshalDouble()
-        z = body.unmarshalDouble()
-        self.parts[name].partsValue = [x, y, z]
-
-      elif type == partType['PARTS_TYPE_CYLINDER'] :
-        self.parts[name].type = 'PARTS_TYPE_CYLINDER'
-        r = body.unmarshalDouble()
-        l = body.unmarshalDouble()
-        self.parts[name].partsValue = [r, l]
-
-      elif type == partType['PARTS_TYPE_SPHERE'] :
-        self.parts[name].type = 'PARTS_TYPE_SPHERE'
-        r = body.unmarshalDouble()
-        self.parts[name].partsValue = [r]
-
-#      print "id=%d, type=%d name=%s " % (id, type, name)
-#      print "pos=%f,%f,%f, Q=%f,%f,%f,%f  ext=%d " % (x,y,z,q1,q2,q3,q4,extlen)
-
-      body.offset = offtmp +datalen
-
-#
 #  Communication base class for SIGVerve
 #
 class SigController(SigClient):
-  def __init__(self, name, ecclass=None):
-    SigClient.__init__(self, name)
+  def __init__(self, name, host="localhost", port=9000, ecclass=None):
+    SigClient.__init__(self, name, host, port)
     self.cmdbuf=SigDataCommand()
     self.ec = None
     self.objs={}
@@ -547,13 +344,17 @@ class SigController(SigClient):
     self.request_obj=False
     self.setEC(ecclass)
     self.mutex=threading.Lock()
-
+  #
+  #  set Execution Context
+  #
   def setEC(self, ecclass):
     if ecclass :
       self.ecClass = ecclass
     else:
       self.ecClass = SigControllerEC
-
+  #
+  #  connetc to simserver
+  #
   def connect(self):
     SigClient.connect(self)
     self.sendInit() 
@@ -562,23 +363,19 @@ class SigController(SigClient):
   def attach(self):
     self.connect()
 
+  #
+  #  send initial message to simserver
+  #
   def sendInit(self):
     self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_ATTACH_CONTROLLER'], name=self.name)
     self.sendCmd(self.cmdbuf.getEncodedCommand())
 
     self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT'], name=self.name)
     self.sendData(self.cmdbuf.getEncodedCommand())
-
-  def getObjOld(self, name=None):
-    if name is None : name = self.name
-    try:
-      return self.objs[name]
-    except:
-      obj = SigSimObj(name, self)
-      obj.getObj()
-      self.objs[name] = obj
-    return obj
-
+ 
+  #
+  # for waiting a reply
+  #
   def checkRequest(self):
     with self.mutex:
       return self.request_obj
@@ -587,6 +384,9 @@ class SigController(SigClient):
     with self.mutex:
       self.request_obj = val
 
+  #
+  #  Request SimObj to create
+  #
   def getObj(self, name=None, waitFlag=1):
     if name is None : name = self.name
     try:
@@ -603,7 +403,9 @@ class SigController(SigClient):
         return self.objs[name]
       except:
         return None
-
+  #
+  #  create SimObj, called by the cmdHandler
+  #
   def createSimObj(self, data):
     self.cmdbuf.setBuffer(data)
     self.cmdbuf.getHeader()
@@ -618,39 +420,102 @@ class SigController(SigClient):
     if exist :
       off = self.cmdbuf.offset
       datalen=self.cmdbuf.unmarshalUShort()
+
       id=self.cmdbuf.unmarshalUInt()
       name=self.cmdbuf.unmarshalString()
       klass=self.cmdbuf.unmarshalString()
-#      print "datalen=%d, id=%d , name=%s, class=%s" % (datalen, id, name, klass)
 
       obj = SigSimObj(name, self)
       obj.updateTime = m_time
 
       attached = self.cmdbuf.unmarshalUShort()
       opts     = self.cmdbuf.unmarshalUInt()
+
       offset1  = self.cmdbuf.unmarshalUShort()
       offset2  = self.cmdbuf.unmarshalUShort()
-#      print "attached=%d opts=%d offset1=%d offset2=%d" % (attached, opts, offset1, offset2)
-      attrlen  = self.cmdbuf.unmarshalUShort()
-#      print "attrlen=%d , size=%d" % (attrlen, len(data[offset1+off:offset2+off]))
 
-      obj.setAttributes(data[offset1+off+2:offset2+off])
+      obj.setAttributes(data[offset1+off:offset2+off])
       obj.setParts(data[offset2+off:])
       
       self.objs[name] = obj
 
     self.setRequest(False)
     return
-
+  #
+  # invoke onCollision
+  #
   def invokeOnCollision(self, data):
     evt = SigCollisionEvent(data)
     evt.parse()
     self.onCollision(evt)
     return
+  #
+  # send a message to other agent(s)
+  #
+  def sendMsg(self, to_name, msg, distance=-1.0):
+    if type(to_name) == types.StringType:
+      msgBuf = "%.5d,%s,%f,1,%s,"  % (len(msg), msg, distance, to_name)
 
+    elif type(to_name) in (types.ListType, types.TupleType):
+      msgBuf = "%.5d,%s,%f,%d,%s,"  % (len(msg), msg, distance, len(to_name), ','.to_name)
+
+    else:
+      print "[ERR} invalid to_name", to_name
+      return
+   
+    self.sendMessageAction(msgBuf)
+    return
+
+  def broadcastMsg(self, msg, distance=-1.0):
+    self.broadcast(msg, distance, -1)
+    return
+
+  def broadcastMsgToSrv(self, msg):
+    self.broadcast(msg, -1.0, -2)
+    return
+
+  def broadcastMsgToCtl(self, msg, distance=-1.0):
+    self.broadcast(msg, distance, -3)
+    return
+
+  def broadcast(self, msg, distance, to):
+    msgBuf = "%.5d,%s,%f,%d,"  % (len(msg), msg, distance, to)
+    self.sendMessageAction(msgBuf)
+    return
+
+  def sendMessageAction(self, msgBuf):
+    self.cmdbuf.createCommand()
+    size = len(msgBuf) + struct.calcsize("HH")
+    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_SENDMSG_FROM_CONTROLLER'])
+    self.cmdbuf.marshalUShort(size)
+    self.cmdbuf.copyString(msgBuf)
+    self.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
+    return
+  #
+  #
+  #
   def setStartTime(self, tm):
     self.startSimTime = tm
- 
+
+  def getCurrentTime(self):
+    ctm = time.time() - self.startTime + self.startSimTime
+    return ctm
+  
+  #
+  #  start/stop the Execution context
+  #
+  def start(self):
+    self.ec = self.ecClass(self)
+    self.startTime=time.time()
+    self.ec.start()
+
+  def stop(self):
+    if self.ec :
+      self.ec.stop()
+      self.ec = None
+  #
+  #  Virtual Functions
+  # 
   def onInit(self,evt):
     return
    
@@ -662,47 +527,3 @@ class SigController(SigClient):
 
   def onCollision(self, evt):
     return
-
-  def getCurrentTime(self):
-    ctm = time.time() - self.startTime + self.startSimTime
-    return ctm
-
-  def start(self):
-    self.ec = self.ecClass(self)
-    self.startTime=time.time()
-    self.ec.start()
-
-  def stop(self):
-    if self.ec :
-      self.ec.stop()
-      self.ec = None
-
-
-class SigCollisionEvent:
-  def __init__(self, data):
-    self.parser = SigCmdMarshaller(data)
-#    self.parser.printPacket(data)
-    self.withVals = []
-    self.withParts = []
-    self.myParts = []
- 
-  def parse(self):
-    currentTime=self.parser.unmarshalDouble() 
-    wn=self.parser.unmarshalUShort() 
-    for i in range(wn):
-      wi=self.parser.unmarshalString()
-      wv, wp, mp, sp = wi.split(":")
-      self.withVals.append(wv)
-      self.withParts.append(wp)
-      self.myParts.append(mp)
-    return 
-
-  def getWith(self):
-    return self.withVals
-
-  def getWithParts(self):
-    return self.withParts
-
-  def getMyParts(self):
-    return self.myParts
-

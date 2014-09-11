@@ -1,6 +1,16 @@
+#!/usr/bin/python
+#
+#   SIGVerse Client Library
+#    Command-line execution utility
+#
+#   Copyright(C) 2014, Isao Hara, AIST
+#   Release under the MIT License.
+#
+#   Usage:  sigrun.py -f <fname> -n <agent name> [--host <hostname>] [--port <port number>]
 #
 #
 #
+
 import sys
 import os
 from optparse import OptionParser
