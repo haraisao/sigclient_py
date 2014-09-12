@@ -170,6 +170,56 @@ class SigDataReader(SigCommReader):
     self.checkCommand()
     self.owner.finishReply()
 
+#
+#  Reader for SigService
+#     sigcomm.SigCommReader <--- SigServiceReader
+#
+class SigServiceReader(SigCommReader): 
+  def __init__(self, owner):
+    SigCommReader.__init__(self, owner)
+    self.command = []
+
+  #
+  # check command format and invoke 
+  #
+  def checkCommand(self):
+    try:
+      self.printPacket(self.buffer)
+    except:
+      pess
+
+    self.clearBuffer()
+  #
+  #  for synchronization
+  #
+  def setCommand(self, cmd):
+    self.command.append(cmd)
+  #
+  #
+  def setMsg(self, msg):
+    res = self.parser.checkDataCommand(msg)
+    cmd = -1
+    if res > 0:
+      self.parser.getHeader(msg[4:])
+      cmd =  self.parser.type
+      self.setCommand("cmd:%d" % (cmd))
+    else:
+      self.parser.setBuffer(msg)
+      cmd = self.parser.unmarshalUShort(0)
+      self.setCommand(cmd)
+    self.parser.clearBuffer()
+
+    if cmd == -1 :
+      print "Invalid command..." 
+      self.printPacket(msg)
+  #
+  # overwrite 'parse'
+  #
+  def parse(self, data):
+    SigCommReader.parse(self, data)
+    self.checkCommand()
+#    self.owner.finishReply()
+
 
 #
 #  Callback handler for command packet.....
@@ -265,7 +315,7 @@ def runOnRecvMsg(comm, msg):
 #
 #  Foundmental client class for SIGVerse:
 #    A controller has two socket commnunication ports.
-#    In this class, we called them as 'command_port' and 'data_port'.
+#    In this class, we called them as 'command_port' and 'data_port'. conadaptor
 #
 class SigClient:
   def __init__(self, myname, host="localhost", port=9000):
@@ -274,6 +324,8 @@ class SigClient:
     self.dataAdaptor=None
     self.cmdReader=SigCmdReader(self)
     self.dataReader=SigDataReader(self)
+    self.srvReader=SigServiceReader(self)
+    self.services={}
     self.wait_for_reply=False
     self.setServer(host, port)
 
@@ -297,7 +349,7 @@ class SigClient:
   #  send command with the command_port
   #
   def sendCmd(self, msg):
-    self.cmdAdaptor.send(self.name, msg)
+    self.cmdAdaptor.send(msg, self.name)
 
   #
   #  flag for waiting reply
@@ -318,7 +370,7 @@ class SigClient:
     if flag :
       self.setWaitForReply()
       self.dataReader.setMsg(msg)
-    self.dataAdaptor.send(self.name, msg)
+    self.dataAdaptor.send(msg, self.name)
 
   #
   #  close socket communication ports
@@ -492,6 +544,66 @@ class SigController(SigClient):
     self.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return
   #
+  #  for Service
+  #
+  def connectToService(self, name):
+    try:
+      return self.services[name]
+    except:
+      sev = None
+      newport = self.port + 1
+      count = 0 
+      res = 0
+      while res != 1 and count < 10:
+        newport += 1
+        srvAdaptor=SocketAdaptor(self.srvReader,self.name+(":srv%d" % newport),self.server,newport)
+        res = srvAdaptor.bind()
+        count += 1
+
+      if res != 1:
+        print "Fail to get service...[%s, %s] "  % (self.name, name)
+        return None
+
+      ##### Request to Connect #####################
+      msgBuf = "%s,%s,"  % (name,self.name) 
+
+      self.cmdbuf.createCommand()
+      size = len(msgBuf) + struct.calcsize("HHH")
+      self.cmdbuf.marshalUShort(cmdDataType['REQUEST_CONNECT_SERVICE'])
+      self.cmdbuf.marshalUShort(size)
+      self.cmdbuf.marshalUShort(newport)
+      self.cmdbuf.copyString(msgBuf)
+      self.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
+
+      ##############################################
+      srv = None 
+      srv_adaptor = srvAdaptor.wait_accept_service(5, False)
+
+      if not srv_adaptor is None :
+        data = srv_adaptor.recv_data(4, 2.0)
+        if data :
+          ack = srv_adaptor.getParser().unmarshalUShort()
+          if ack == 1:
+            print "connect to service [%s]" % name
+            self.services[name] = srv_adaptor
+            srv = ViewService(self, srv_adaptor)
+            srv.setEntityName(name)
+#            srv_adaptor.start()
+          elif ack == 4:
+            print "fail to connect to service [%s]" % name
+            srv_adaptor.close()
+          else:
+            print "Unknown in connctToService "
+            srv_adaptor.close()
+        else:
+          print "Fail to read accept message"
+          srv_adaptor.close()
+      else:
+        print "ERROR in connectToService"
+
+      srvAdaptor.close()
+      return srv
+  #
   #
   #
   def setStartTime(self, tm):
@@ -527,3 +639,36 @@ class SigController(SigClient):
 
   def onCollision(self, evt):
     return
+
+#
+#  SerivceAdaptor
+#
+class SigService:
+  def __init__(self, owner):
+    self.name = ""
+    self.owner = owner
+    self.adaptor = None 
+
+  def setName(self, name):
+    self.adaptor.setHost(name)
+
+  def setAdaptor(self, adp):
+    self.adaptor = adp
+
+  def setEntityName(self, name):
+    self.name = name
+
+#
+#  ViewService
+#    SigService <--- ViewService
+#
+class ViewService(SigService):
+  def __init__(self, owner, adaptor):
+    SigService.__init__(self, owner)
+    self.adaptor = adaptor 
+
+  def detectEntities(self, objs, cam_id):
+    self.adaptor = adaptor 
+
+
+

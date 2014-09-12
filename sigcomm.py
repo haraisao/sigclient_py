@@ -13,7 +13,8 @@ import select
 import time
 import threading
 import struct
-from sig import *
+import copy
+#from sig import *
 
 #
 # Raw Socket Adaptor
@@ -28,13 +29,53 @@ class SocketAdaptor(threading.Thread):
     self.host = host
     self.port = port
     self.socket = None
+    self.service = []
+    self.service_id = 0
+    self.client_adaptor = True
     self.mainloop = False
     self.debug = False
+  #
+  #
+  #
+  def setHost(self, name):
+    self.host = name
+    return 
+
+  def setPort(self, port):
+    self.port = port
+    return 
+
+  def setClientMode(self):
+    self.client_adaptor = True
+    return 
+
+  def setServerMode(self):
+    self.client_adaptor = False
+    return 
+  #
+  # Bind
+  #
+  def bind(self):
+    try:
+      self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      self.socket.bind((self.host, self.port))
+
+    except socket.error:
+      print "Connection error"
+      self.close()
+      return 0
+    except:
+      print "Error in connect " , self.host, self.port
+      self.close()
+      return -1
+
+    return 1
+
 
   #
   # Connect
   #
-  def connect(self):
+  def connect(self, async=True):
     if self.mainloop :
       return
 
@@ -51,9 +92,9 @@ class SocketAdaptor(threading.Thread):
       self.close()
       return -1
 
-    print "Start read thread ",self.name
-    self.mainloop = True
-    self.start()
+    if async :
+      print "Start read thread ",self.name
+      self.start()
 
     return 1
 
@@ -76,21 +117,16 @@ class SocketAdaptor(threading.Thread):
   #
   # Receive
   #
-  def receive_data(self):
+  def recieve_data(self, bufsize=8192, timeout=1.0):
     data = None
     try:
-#      rready, wready, xready = select.select([self.socket],[],[], 1.0)
-#      if len(rready) :
-      if self.wait_for_read(1.0) == 1  :
-        data = self.socket.recv(8192)     # buffer size = 1024 * 8
+      if self.wait_for_read(timeout) == 1  :
+        data = self.socket.recv(bufsize)     # buffer size = 1024 * 8
         if len(data) != 0:
           return data
         else:
           return  -1
 
-#    except socket.timeout:
-#      pass
-#
     except socket.error:
       print "socket.error in recieve_data"
       self.terminate()
@@ -100,12 +136,81 @@ class SocketAdaptor(threading.Thread):
       self.terminate()
 
     return data
+
+  def recv_data(self, bufsize=1024, timeout=1.0):
+    data = self.recieve_data(bufsize, timeout)
+    if data :
+      self.reader.parser.setBuffer(data)
+    return data
+    
+  def getParser(self):
+    return self.reader.parser
+  #
+  #  Thread oprations...
+  #
+  def start(self):
+    self.mainloop = True
+    threading.Thread.start(self)
+
+  def run(self):
+    if self.client_adaptor: 
+      self.message_reciever()
+    else:
+      self.accept_service_loop()
+
+  #
+  # Backgrount job (server side)
+  #
+  def accept_service(self, flag=True):
+    try:
+      conn, addr = self.socket.accept()
+      self.service_id += 1
+#      print "Accept: ", addr
+      name = self.name+":service:%d" % self.service_id
+      reader = copy.copy(self.reader)
+      newadaptor = SocketAdaptor(self.reader, name, addr[0], addr[1])
+      newadaptor.socket = conn
+      self.service.append(newadaptor)
+      if flag :
+        newadaptor.start()
+      return newadaptor
+    except:
+      print "ERROR in accept_service"
+      pass
+    return None
+
+  def wait_accept_service(self, timeout=5, runflag=True):
+    print "Wait for accept %d sec.: %s(%s:%d)" % (timeout, self.name, self.host, self.port)
+    self.socket.listen(1)
+    res = self.wait_for_read(timeout) 
+    if res == 1:
+      return self.accept_service(runflag)
+    else:
+      pass 
+    return None
+
+  def accept_service_loop(self, lno=5, timeout=1.0):
+    print "Wait for accept: %s(%s:%d)" % (self.name, self.host, self.port)
+    self.socket.listen(lno)
+    while self.mainloop:
+      res = self.wait_for_read(timeout) 
+      if res == 1:
+        self.accept_service()
+      elif res == -1:
+        self.terminate()
+      else:
+        pass
+    
+    print "Terminate all service %s(%s:%d)" % (self.name, self.host, self.port)
+    self.close_service()
+    self.close()
+    return 
   #
   #  Background job ( message reciever )
   #
-  def run(self):
+  def message_reciever(self):
     while self.mainloop:
-      data = self.receive_data() 
+      data = self.recieve_data() 
 
       if data  == -1:
         self.terminate()
@@ -121,9 +226,14 @@ class SocketAdaptor(threading.Thread):
         print data
 
     print "Read thread terminated:",self.name
+
   #
   #  close socket
   #
+  def close_service(self):
+    for s in  self.service :
+      s.terminate()
+
   def close(self):
     if self.socket :
       self.socket.close()
@@ -137,11 +247,10 @@ class SocketAdaptor(threading.Thread):
   #
   #  Send message
   #
-  def send(self, name, msg):
+  def send(self, msg, name=None):
     if not self.socket :
       print "Error: Not connected"
       return None
-
     try:
       self.socket.sendall(msg)
     except socket.error:
@@ -310,11 +419,17 @@ class SigCommReader:
     self.parser = SigDataCommand()
     self.mgsHandler = None
     self.dataHandler = None
+    if owner is None:
+      self.debug = True
+    else:
+      self.debug = False
 
   #
   #  parse recieved data, called by SocketAdaptor
   #
   def parse(self, data):
+    if self.debug:
+      print data
     self.appendBuffer( data )
 
   #
