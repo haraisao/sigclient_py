@@ -587,7 +587,7 @@ class SigController(SigClient):
             print "connect to service [%s]" % name
             self.services[name] = srv_adaptor
             srv = ViewService(self, srv_adaptor)
-            srv.setEntityName(name)
+            srv.setEntityName(self.name)
 #            srv_adaptor.start()
           elif ack == 4:
             print "fail to connect to service [%s]" % name
@@ -668,7 +668,33 @@ class ViewService(SigService):
     self.adaptor = adaptor 
 
   def detectEntities(self, objs, cam_id):
-    self.adaptor = adaptor 
+    msgBuf = "%s,%d," % (self.name, cam_id)
+
+    cmdbuf = self.adaptor.getParser()
+    cmdbuf.createCommand()
+    size = len(msgBuf) + struct.calcsize("HH")
+    cmdbuf.marshalUShort(7)
+    cmdbuf.marshalUShort(size)
+    cmdbuf.copyString(msgBuf)
+
+    sendBuf = cmdbuf.getEncodedDataCommand()
+    self.adaptor.send(sendBuf)
+    self.adaptor.reader.printPacket( sendBuf ) 
+    data = self.adaptor.recv_data(4, 2.0)
+    if data :
+      head = self.adaptor.getParser().unmarshalUShort()
+      ssize = self.adaptor.getParser().unmarshalUShort()
+      data = self.adaptor.recv_data(ssize, 2.0)
+      if data :
+        obj = data.split(',')
+        n=obj.pop(0)
+        for x in range(int(n)):
+          objs.append(obj[x])
+        return True
+      else:
+        pass
+   
+    return False
 
 
 
