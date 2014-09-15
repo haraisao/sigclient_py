@@ -679,7 +679,7 @@ class ViewService(SigService):
 
     sendBuf = cmdbuf.getEncodedDataCommand()
     self.adaptor.send(sendBuf)
-    self.adaptor.reader.printPacket( sendBuf ) 
+#    self.adaptor.reader.printPacket( sendBuf ) 
     data = self.adaptor.recv_data(4, 2.0)
     if data :
       head = self.adaptor.getParser().unmarshalUShort()
