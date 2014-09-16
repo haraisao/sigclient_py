@@ -651,7 +651,8 @@ class ViewService(SigService):
     self.command={"capture":5, "detect": 7,
                 }
 
-  def detectEntities(self, objs, cam_id):
+  def detectEntities(self, cam_id):
+    objs = []
     msgBuf = "%s,%d," % (self.name, cam_id)
 
     cmdbuf = self.adaptor.getParser()
@@ -667,10 +668,10 @@ class ViewService(SigService):
         n=obj.pop(0)
         for x in range(int(n)):
           objs.append(obj[x])
-        return True
+        return objs
       else:
         pass
-    return False
+    return None
 
   def captureView(self, cam_id, colorType, imgSize):
     msgBuf = "%s,%d," % (self.name, cam_id)

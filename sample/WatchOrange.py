@@ -22,14 +22,11 @@ class WatchController(sig.SigController):
       my = self.getObj()
       if self.raise_hand :
         my.setJointAngle("LARM_JOINT2", math.radians(0)) 
-      if not self.view is None :
-        ent = []
-        b = self.view.detectEntities(ent, 1)
-        if b and len(ent) > 0 :
-          for name in ent:
-            if name == "orange_0" :
-              my.setJointAngle("LARM_JOINT2", math.radians(180)) 
-              self.raise_hand = True
+      if self.view :
+        ent = self.view.detectEntities(1)
+        if ent and "orange_0" in ent:
+          my.setJointAngle("LARM_JOINT2", math.radians(180)) 
+          self.raise_hand = True
     except:
       print "ERROR in anAction"
       pass

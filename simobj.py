@@ -27,25 +27,21 @@ class SigObjAttribute(SigMarshaller):
     self.group=None
 
   def parse(self):
-    datalen = self.unmarshalUShort()
-    self.name = self.unmarshalString()
-    self.group = self.unmarshalString()
-    vallen = self.unmarshalUShort()
-    self.valueType = self.unmarshalUShort()
+    datalen,self.name, self.group, vallen, self.valueType = self.unmarshal('HSSHH')
 
     if self.valueType == typeValue['VALUE_TYPE_BOOL']:
       self.valueType = 'VALUE_TYPE_BOOL'
-      value = self.unmarshalUShort()
+      value, = self.unmarshal('H')
       if value : self.value=True
       else : self.value=False
 
     elif self.valueType == typeValue['VALUE_TYPE_DOUBLE']:
       self.valueType = 'VALUE_TYPE_DOUBLE'
-      self.value = self.unmarshalDouble()
+      self.value, = self.unmarshal('d')
 
     elif self.valueType == typeValue['VALUE_TYPE_STRING']:
       self.valueType = 'VALUE_TYPE_STRING'
-      self.value = self.unmarshalString()
+      self.value = self.unmarshal('H')
     else:
       pass
 
@@ -64,41 +60,27 @@ class SigObjPart(SigMarshaller):
     self.partsValue=None
 
   def parse(self):
-    datalen = self.unmarshalUShort()      
-    self.id = self.unmarshalUInt()
-    type = self.unmarshalUShort()
-    self.name = self.unmarshalString()
+    datalen,self.id,type,self.name = self.unmarshal('HIHS')      
 
-    self.pos[0] = self.unmarshalDouble()
-    self.pos[1] = self.unmarshalDouble()
-    self.pos[2] = self.unmarshalDouble()
+    self.pos = self.unmarshal('ddd')
 
-    rtype = self.unmarshalUShort()
+    rtype, = self.unmarshal('H')
     if rtype == 0:  # ROTATION_TYPE_QUATERNION
-      self.quaternion[0] = self.unmarshalDouble()
-      self.quaternion[1] = self.unmarshalDouble()
-      self.quaternion[2] = self.unmarshalDouble()
-      self.quaternion[3] = self.unmarshalDouble()
+      self.quaternion = self.unmarshal('dddd')
 
-      extlen = self.unmarshalUShort()
+      extlen, = self.unmarshal('H')
 
       if type == partType['PARTS_TYPE_BOX'] :
         self.type = 'PARTS_TYPE_BOX'
-        x = self.unmarshalDouble()
-        y = self.unmarshalDouble()
-        z = self.unmarshalDouble()
-        self.partsValue = [x, y, z]
+        self.partsValue = self.unmarshal('ddd')
 
       elif type == partType['PARTS_TYPE_CYLINDER'] :
         self.type = 'PARTS_TYPE_CYLINDER'
-        r = self.unmarshalDouble()
-        l = self.unmarshalDouble()
-        self.partsValue = [r, l]
+        self.partsValue = self.unmarshal('dd')
 
       elif type == partType['PARTS_TYPE_SPHERE'] :
         self.type = 'PARTS_TYPE_SPHERE'
-        r = self.unmarshalDouble()
-        self.partsValue = [r]
+        self.partsValue = self.unmarshal('d')
 
       else:
         self.type = 'PARTS_TYPE_UNKNOWN'
@@ -158,7 +140,6 @@ class SigObjPart(SigMarshaller):
   def qz(self, val=None):
     return self.quaternion_val(3, val)
 
-
 #
 #  SimObj
 #
@@ -185,12 +166,12 @@ class SigSimObj:
     bufsize = len(data)
     attr = SigMarshaller(data)
 
-    attrlen = attr.unmarshalUShort()
+    attrlen, = attr.unmarshal('H')
     offset=attr.offset
 
     while bufsize > offset :
       attr.offset = offset
-      datalen = attr.unmarshalUShort()
+      datalen, = attr.unmarshal('H')
 
       attribute = SigObjAttribute(data[offset:offset+datalen])
       attribute.parse()
@@ -203,14 +184,14 @@ class SigSimObj:
   #
   def setParts(self, data):
     body = SigMarshaller(data)
-    bodylen=body.unmarshalUShort()      
+    bodylen, = body.unmarshal('H')      
 
     offset=body.offset
     bufsize = len(data)
 
     while bufsize > offset :
       body.offset = offset
-      datalen = body.unmarshalUShort()      
+      datalen, = body.unmarshal('H')      
 
       part = SigObjPart(data[offset:offset+datalen])
       part.parse()
@@ -238,25 +219,15 @@ class SigSimObj:
 
   def setPosition(self, x, y, z):
     self.parts['body'].setPos(x, y, z)
-    self.cmdbuf.createCommand()
     name = self.name+','
-    size = len(name) + struct.calcsize("HH")+struct.calcsize("ddd")
-    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_SET_ENTITY_POSITION'])
-    self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.marshalDouble(x)
-    self.cmdbuf.marshalDouble(y)
-    self.cmdbuf.marshalDouble(z)
-    self.cmdbuf.marshalString(name, 0)
+    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_SET_ENTITY_POSITION'], name,
+                                 ('d', x), ('d', y), ('d', z))
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
 
   def updatePosition(self):
-    self.cmdbuf.createCommand()
     name = self.name+','
-    size = len(name) + struct.calcsize("HH")
-    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_GET_ENTITY_POSITION'])
-    self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.marshalString(name, 0)
+    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_GET_ENTITY_POSITION'], name)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
     return
 
@@ -283,17 +254,10 @@ class SigSimObj:
 
   def setRotation(self, qw, qx, qy, qz, abs=1):
     self.parts['body'].setQuaternion(qw, qx, qy, qz)
-    self.cmdbuf.createCommand()
     name = self.name+','
-    size = len(name) + struct.calcsize("HHH")+struct.calcsize("dddd")
-    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_SET_ENTITY_ROTATION'])
-    self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.marshalUShort(abs)
-    self.cmdbuf.marshalDouble(qw)
-    self.cmdbuf.marshalDouble(qx)
-    self.cmdbuf.marshalDouble(qy)
-    self.cmdbuf.marshalDouble(qz)
-    self.cmdbuf.marshalString(name, 0)
+    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_SET_ENTITY_ROTATION'], name,
+                                 ('H', abs), ('d', qw), ('d', qx), ('d', qy), ('d', qz))
+
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
 
@@ -303,12 +267,8 @@ class SigSimObj:
     return
 
   def updateRotation(self):
-    self.cmdbuf.createCommand()
     name = self.name+','
-    size = len(name) + struct.calcsize("HH")
-    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_GET_ENTITY_ROTATION'])
-    self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.marshalString(name, 0)
+    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_GET_ENTITY_ROTATION'], name)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
     return
 
@@ -333,10 +293,7 @@ class SigSimObj:
   def addForce(self, dfx, dfy, dfz):
     self.cmdbuf.createCommand()
     self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_ADD_FORCE'], name=self.name)
-    self.cmdbuf.marshalDouble(dfx)
-    self.cmdbuf.marshalDouble(dfy)
-    self.cmdbuf.marshalDouble(dfz)
-    self.cmdbuf.marshalBool(0)  # false
+    self.cmdbuf.marshal('dddB', dfx, dfy, dfz, 0)
     self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
      
     return 
@@ -354,26 +311,72 @@ class SigSimObj:
   def setJointAngle(self, joint_name, angle):
     self.cmdbuf.createCommand()
     self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_SET_JOINT_ANGLE'], name=self.name)
-    self.cmdbuf.marshalString(joint_name)
-    self.cmdbuf.marshalDouble(angle)
-    self.cmdbuf.marshalBool(0)  # false
+    self.cmdbuf.marshal('SdB', joint_name, angle, 0)
     self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
     return 
 
   def setJointQuaternion(self, joint_name, qw, qx, qy, qz, offset=0):
-    self.cmdbuf.createCommand()
     msg = self.name + ',' + joint_name + ','
     if offset :
       msg += '1,'
     else:
       msg += '0,'
-    size = len(msg) + struct.calcsize("HH") + struct.calcsize("dddd")
-    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_SET_JOINT_QUATERNION'])
-    self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.marshalDouble(qw)
-    self.cmdbuf.marshalDouble(qx)
-    self.cmdbuf.marshalDouble(qy)
-    self.cmdbuf.marshalDouble(qz)
-    self.cmdbuf.marshalString(msg, 0)
+
+    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_SET_JOINT_QUATERNION'], msg,
+                                 ('d', qw), ('d', qx), ('d', qy), ('d', qz))
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
+
+#
+#
+#
+class Position:
+  def __init__(self, *args):
+    if len(args) == 3:
+      pos = args
+    elif len(args) == 1:
+      pos = args[0]
+    else:
+      pos = (0,0,0)
+   
+    self.x=pos[0]
+    self.y=pos[1]
+    self.z=pos[2]
+
+  def x(self):
+    return self.x
+
+  def y(self):
+    return self.y
+
+  def z(self):
+    return self.z
+#
+#
+#
+class Rotation:
+  def __init__(self, *args):
+    if len(args) == 4:
+      rot = args
+    elif len(args) == 1:
+      rot = args[0]
+    else:
+      rot = (0,0,0,0)
+   
+    self.qw=pos[0]
+    self.qx=pos[1]
+    self.qy=pos[2]
+    self.qz=pos[3]
+
+  def qw(self):
+    return self.qw
+
+  def qx(self):
+    return self.qx
+
+  def qy(self):
+    return self.qy
+
+  def qz(self):
+    return self.qz
+
