@@ -246,7 +246,7 @@ class SigSimObj:
     self.cmdbuf.marshalDouble(x)
     self.cmdbuf.marshalDouble(y)
     self.cmdbuf.marshalDouble(z)
-    self.cmdbuf.copyString(name)
+    self.cmdbuf.marshalString(name, 0)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
 
@@ -256,7 +256,7 @@ class SigSimObj:
     size = len(name) + struct.calcsize("HH")
     self.cmdbuf.marshalUShort(cmdDataType['REQUEST_GET_ENTITY_POSITION'])
     self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.copyString(name)
+    self.cmdbuf.marshalString(name, 0)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
     return
 
@@ -293,7 +293,7 @@ class SigSimObj:
     self.cmdbuf.marshalDouble(qx)
     self.cmdbuf.marshalDouble(qy)
     self.cmdbuf.marshalDouble(qz)
-    self.cmdbuf.copyString(name)
+    self.cmdbuf.marshalString(name, 0)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
 
@@ -308,7 +308,7 @@ class SigSimObj:
     size = len(name) + struct.calcsize("HH")
     self.cmdbuf.marshalUShort(cmdDataType['REQUEST_GET_ENTITY_ROTATION'])
     self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.copyString(name)
+    self.cmdbuf.marshalString(name, 0)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
     return
 
@@ -374,6 +374,6 @@ class SigSimObj:
     self.cmdbuf.marshalDouble(qx)
     self.cmdbuf.marshalDouble(qy)
     self.cmdbuf.marshalDouble(qz)
-    self.cmdbuf.copyString(msg)
+    self.cmdbuf.marshalString(msg, 0)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 

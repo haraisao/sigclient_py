@@ -71,7 +71,6 @@ class SocketAdaptor(threading.Thread):
 
     return 1
 
-
   #
   # Connect
   #
@@ -138,11 +137,28 @@ class SocketAdaptor(threading.Thread):
     return data
 
   def recv_data(self, bufsize=1024, timeout=1.0):
-    data = self.recieve_data(bufsize, timeout)
-    if data :
-      self.reader.parser.setBuffer(data)
-    return data
+    while True:
+      data = self.recieve_data(bufsize, timeout)
+
+      if data is None or data == -1:
+        self.reader.clearBuffer()
+        return None
+
+      else :
+        self.reader.appendBuffer(data)
+        if self.reader.bufsize >= bufsize :
+          data1 = self.reader.read(bufsize, 1)
+          self.reader.parser.setBuffer(data1)
+          return data1
+        else:
+#          print  "Size %d, %d" % (self.reader.bufsize, bufsize )
+          pass
+      
+    return None
     
+  #
+  #
+  #
   def getParser(self):
     return self.reader.parser
   #
@@ -411,12 +427,16 @@ cmdDataType={
 #  Foundmental reader class for SIGVerse Communiction
 #
 class SigCommReader:
-  def __init__(self, owner=None):
+  def __init__(self, owner=None, parser=None):
     self.buffer = ""
     self.bufsize = 0
     self.current=0
     self.owner = owner
-    self.parser = SigDataCommand()
+    if parser is None:
+      self.parser = SigMarshaller('')
+    else:
+      self.parser = parser
+ 
     self.mgsHandler = None
     self.dataHandler = None
     if owner is None:
@@ -485,13 +505,8 @@ class SigCommReader:
   # print buffer (for debug)
   #
   def printPacket(self, data):
-    if data :
-      for x in data:
-        print "0x%02x" % ord(x), 
-      print
-    else:
-      print "No command"
-
+    if self.parser:
+      self.parser.printPacket(data)
 #
 #  Controoller base class for SIGVeerse
 #    The custom cotroller should be inherit this class.
@@ -521,17 +536,19 @@ class SigControllerEC(threading.Thread):
 class SigMarshaller:
   def __init__(self, buffer):
     self.buffer=buffer
-    self.offset=0
-    self.cmdheaderMarshaller=struct.Struct('!HH')
-    self.cmdfooterMarshaller=struct.Struct('!H')
-
     self.bufsize = len(buffer)
+
+    self.offset=0
     self.cmdsize = 0
 
+    self.cmdheaderMarshaller=struct.Struct('!HH')
+    self.cmdfooterMarshaller=struct.Struct('!H')
     self.encbuf=None
     self.encpos=0
+
     self.cmd_header='\xab\xcd\x00\x00'
     self.cmd_footer='\xdc\xba'
+
   #
   #  for buffer
   #
@@ -542,10 +559,7 @@ class SigMarshaller:
     self.offset=0
 
   def clearBuffer(self):
-    if self.buffer : del self.buffer
-    self.buffer=""
-    self.bufsize=0
-    self.offset=0
+    self.setBuffer("")
 
   def appendBuffer(self, buffer):
     self.buffer += buffer
@@ -678,32 +692,36 @@ class SigMarshaller:
     return self.unmarshalNum('d', offset)
      
   def unmarshalBool(self, offset=-1):
-    if offset < 0 : offset=self.offset
-    try:
-     (res,) =  struct.unpack_from('B', self.buffer, offset)
-     self.offset = offset + struct.calcsize('B')
-     return res
-    except:
-      print "Error in unmarshalBool"
-      return None
+    return self.unmarshalNum('B', offset)
 
+  def unmarshal(self, fmt):
+    res=[]
+    for x in fmt:
+      if x in ('i', 'h', 'I', 'H'):
+        res.append(self.unmarshalNum('!'+x))
+      elif x in ('d', 'B'):
+        res.append(self.unmarshalNum(x))
+      elif x == 'S':
+        res.append(self.unmarshalString())
+    return res
   #
   #  generate command
   #
   def createCommand(self):
-    self.encbuf=bytearray('\xab\xcd\x00\x06\xdc\xba')
-    self.encpos=4 
+    self.encbuf=bytearray()
+    self.encpos=0 
 
   def setCommandSize(self):
     size = len(self.encbuf)
     struct.pack_into('!H', self.encbuf, 2, size)
 
   def getEncodedCommand(self):
+    self.encbuf = self.cmd_header + self.encbuf + self.cmd_footer
     self.setCommandSize()
     return str(self.encbuf)
 
   def getEncodedDataCommand(self):
-    return str(self.encbuf[4:-2])
+    return str(self.encbuf)
 
   def clearEncodedCommand(self):
     if self.encbuf : del self.encbuf
@@ -715,7 +733,7 @@ class SigMarshaller:
   def marshalNumericData(self, fmt, s):
     enc_code = bytearray( struct.calcsize(fmt))
     struct.pack_into(fmt, enc_code, 0, s)
-    self.encbuf = self.encbuf[:-2]+enc_code+self.encbuf[-2:]
+    self.encbuf = self.encbuf+enc_code
     self.encpos += struct.calcsize(fmt)
 
   def marshalUShort(self, s):
@@ -729,37 +747,60 @@ class SigMarshaller:
 
   def marshalBool(self, d):
     if d :
-      self.marshalNumericData('B', 0)
+      self.marshalNumericData('B', 1)
     else :
       self.marshalNumericData('B', 0)
 
-  def marshalString(self, str):
+  def marshalString(self, str, with_size=1):
     size=len(str)
-    if size > 0 :
-      encsize = struct.calcsize('!I') + (1+size/4)*4
+
+    if with_size :
+      if size > 0 :
+        enc_size = struct.calcsize('!I') + (1+size/4)*4
+      else:
+        enc_size = struct.calcsize('!I')
+
+      enc_code = bytearray( enc_size )
+      struct.pack_into('!I', enc_code, 0, size)
+      offlen = struct.calcsize('!I')
     else:
-      encsize = struct.calcsize('!I')
-
-    enc_code = bytearray( encsize )
-    struct.pack_into('!I', enc_code, 0, size)
+      enc_size = size
+      offlen = 0
+      enc_code = bytearray( enc_size )
 
     if size > 0 :
-      struct.pack_into('%ds' % (size,), enc_code, struct.calcsize('!I'), str)
+      struct.pack_into('%ds' % (size,), enc_code, offlen, str)
 
-    self.encbuf = self.encbuf[:-2]+enc_code+self.encbuf[-2:]
-    self.encpos += encsize
+    self.encbuf = self.encbuf+enc_code
+    self.encpos += enc_size
 
-  #
-  # another marshaling string
-  #
-  def copyString(self, str):
-    size=len(str)
-    enc_code = bytearray( size )
+  def marshal(self, fmt, *data):
+    pos = 0
+    for x in fmt:
+      if x in ('i', 'h', 'I', 'H'):
+        self.marshalNumericData('!'+x, data[pos])
+      elif x in ('d', 'B'):
+        self.marshalNumericData(x, data[pos])
+      elif x == 'S':
+        self.marshalString(data[pos])
+      elif x == 's':
+        self.marshalString(data[pos], 0)
+      pos += 1
+    return 
 
-    struct.pack_into('%ds' % (size,), enc_code, 0, str)
+  def createMsgCommand(self, cmd, msgBuf, *opt):
+    self.createCommand()
+    size = len(msgBuf) + struct.calcsize("HH")
+    if len(opt) > 0:
+      for x in opt:
+        size = size + struct.calcsize(x[0])
 
-    self.encbuf = self.encbuf[:-2]+enc_code+self.encbuf[-2:]
-    self.encpos += size
+      self.marshal('HH', cmd, size)
+      for x in opt:
+        self.marshal(x[0], x[1])
+      self.marshal('s', msgBuf)
+    else:
+      self.marshal('HHs', cmd, size, msgBuf)
 
 #
 #  marshalling command 
@@ -768,6 +809,7 @@ class SigMarshaller:
 class SigDataCommand(SigMarshaller):
   def __init__(self, buffer=''):
     SigMarshaller.__init__(self, buffer)
+
     self.headerMarshaller=struct.Struct('!HHHH') ## type, packetNum, seq, fowardFlags. 
     self.type = 0
     self.packetNum = 0

@@ -27,7 +27,6 @@ class WatchController(sig.SigController):
         b = self.view.detectEntities(ent, 1)
         if b and len(ent) > 0 :
           for name in ent:
-#            print "detected %s" % name
             if name == "orange_0" :
               my.setJointAngle("LARM_JOINT2", math.radians(180)) 
               self.raise_hand = True

@@ -18,7 +18,7 @@ from simobj import *
 #
 class SigCmdReader(SigCommReader): 
   def __init__(self, owner):
-    SigCommReader.__init__(self, owner)
+    SigCommReader.__init__(self, owner, SigDataCommand())
     self.setHandler( SigCmdHandler(self), SigMessageHandler(self))
 
   def setHandler(self, dhndlr, mhndlr):
@@ -70,7 +70,7 @@ class SigCmdReader(SigCommReader):
 #
 class SigDataReader(SigCommReader): 
   def __init__(self, owner):
-    SigCommReader.__init__(self, owner)
+    SigCommReader.__init__(self, owner, SigDataCommand())
     self.command = []
 
   #
@@ -102,6 +102,7 @@ class SigDataReader(SigCommReader):
 
     except:
       print "No such command registered: ", cmd
+      self.printPacket(self.buffer)
 
     self.clearBuffer()
 
@@ -112,13 +113,11 @@ class SigDataReader(SigCommReader):
     return self.owner.getObj()
 
   def setObjPosition(self, data):
+    print "Call setObjPosision"
     self.parser.setBuffer(data)
-    sucess = self.parser.unmarshalBool()
-    x = self.parser.unmarshalDouble()
-    y = self.parser.unmarshalDouble()
-    z = self.parser.unmarshalDouble()
+    success, x, y, z = self.parser.unmarshal('Bddd')
 
-    if sucess :
+    if success :
       self.getSimObj().setCurrentPosition(x, y, z)
     else:
       print "Fail to getPosition" 
@@ -126,13 +125,9 @@ class SigDataReader(SigCommReader):
 
   def setObjRotation(self, data):
     self.parser.setBuffer(data)
-    sucess = self.parser.unmarshalBool()
-    qw = self.parser.unmarshalDouble()
-    qx = self.parser.unmarshalDouble()
-    qy = self.parser.unmarshalDouble()
-    qz = self.parser.unmarshalDouble()
+    success, qw, qx, qy, qz = self.parser.unmarshal('Bdddd')
 
-    if sucess :
+    if success :
       self.getSimObj().setCurrentRotation(qw, qx, qy, qz)
     else:
       print "Fail to getRotation" 
@@ -155,7 +150,7 @@ class SigDataReader(SigCommReader):
       self.setCommand("cmd:%d" % (cmd))
     else:
       self.parser.setBuffer(msg)
-      cmd = self.parser.unmarshalUShort(0)
+      cmd, = self.parser.unmarshal('H')
       self.setCommand(cmd)
     self.parser.clearBuffer()
 
@@ -176,7 +171,7 @@ class SigDataReader(SigCommReader):
 #
 class SigServiceReader(SigCommReader): 
   def __init__(self, owner):
-    SigCommReader.__init__(self, owner)
+    SigCommReader.__init__(self, owner, SigDataCommand())
     self.command = []
 
   #
@@ -205,7 +200,7 @@ class SigServiceReader(SigCommReader):
       self.setCommand("cmd:%d" % (cmd))
     else:
       self.parser.setBuffer(msg)
-      cmd = self.parser.unmarshalUShort(0)
+      cmd, = self.parser.unmarshal('H')
       self.setCommand(cmd)
     self.parser.clearBuffer()
 
@@ -461,30 +456,21 @@ class SigController(SigClient):
   def createSimObj(self, data):
     self.cmdbuf.setBuffer(data)
     self.cmdbuf.getHeader()
-    result=self.cmdbuf.unmarshalUShort()
+    result, = self.cmdbuf.unmarshal('H')
     if result != cmdType['COMM_RESULT_OK'] :
       self.setRequest(False)
       return False
 
-    m_time=self.cmdbuf.unmarshalDouble()
-    exist=self.cmdbuf.unmarshalUShort()
+    m_time, exist = self.cmdbuf.unmarshal('dH')
 
     if exist :
       off = self.cmdbuf.offset
-      datalen=self.cmdbuf.unmarshalUShort()
-
-      id=self.cmdbuf.unmarshalUInt()
-      name=self.cmdbuf.unmarshalString()
-      klass=self.cmdbuf.unmarshalString()
+      datalen,id,name,klass = self.cmdbuf.unmarshal('HISS')
 
       obj = SigSimObj(name, self)
       obj.updateTime = m_time
 
-      attached = self.cmdbuf.unmarshalUShort()
-      opts     = self.cmdbuf.unmarshalUInt()
-
-      offset1  = self.cmdbuf.unmarshalUShort()
-      offset2  = self.cmdbuf.unmarshalUShort()
+      attached,opts,offset1,offset2 = self.cmdbuf.unmarshal('HIHH')
 
       obj.setAttributes(data[offset1+off:offset2+off])
       obj.setParts(data[offset2+off:])
@@ -536,11 +522,7 @@ class SigController(SigClient):
     return
 
   def sendMessageAction(self, msgBuf):
-    self.cmdbuf.createCommand()
-    size = len(msgBuf) + struct.calcsize("HH")
-    self.cmdbuf.marshalUShort(cmdDataType['REQUEST_SENDMSG_FROM_CONTROLLER'])
-    self.cmdbuf.marshalUShort(size)
-    self.cmdbuf.copyString(msgBuf)
+    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_SENDMSG_FROM_CONTROLLER'], msgBuf)
     self.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return
   #
@@ -548,7 +530,8 @@ class SigController(SigClient):
   #
   def connectToService(self, name):
     try:
-      return self.services[name]
+      adaptor = self.services[name]
+      return ViewService(self, adaptor)
     except:
       sev = None
       newport = self.port + 1
@@ -567,16 +550,13 @@ class SigController(SigClient):
       ##### Request to Connect #####################
       msgBuf = "%s,%s,"  % (name,self.name) 
 
-      self.cmdbuf.createCommand()
-      size = len(msgBuf) + struct.calcsize("HHH")
-      self.cmdbuf.marshalUShort(cmdDataType['REQUEST_CONNECT_SERVICE'])
-      self.cmdbuf.marshalUShort(size)
-      self.cmdbuf.marshalUShort(newport)
-      self.cmdbuf.copyString(msgBuf)
+      self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_CONNECT_SERVICE'], msgBuf, ('H', newport))
       self.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
 
       ##############################################
       srv = None 
+      #
+      #  Wait 5 seconds until connection from the service.
       srv_adaptor = srvAdaptor.wait_accept_service(5, False)
 
       if not srv_adaptor is None :
@@ -593,7 +573,7 @@ class SigController(SigClient):
             print "fail to connect to service [%s]" % name
             srv_adaptor.close()
           else:
-            print "Unknown in connctToService "
+            print "Unknown in connectToService "
             srv_adaptor.close()
         else:
           print "Fail to read accept message"
@@ -601,6 +581,8 @@ class SigController(SigClient):
       else:
         print "ERROR in connectToService"
 
+      #
+      # close service adaptor for connection
       srvAdaptor.close()
       return srv
   #
@@ -666,25 +648,20 @@ class ViewService(SigService):
   def __init__(self, owner, adaptor):
     SigService.__init__(self, owner)
     self.adaptor = adaptor 
+    self.command={"capture":5, "detect": 7,
+                }
 
   def detectEntities(self, objs, cam_id):
     msgBuf = "%s,%d," % (self.name, cam_id)
 
     cmdbuf = self.adaptor.getParser()
-    cmdbuf.createCommand()
-    size = len(msgBuf) + struct.calcsize("HH")
-    cmdbuf.marshalUShort(7)
-    cmdbuf.marshalUShort(size)
-    cmdbuf.copyString(msgBuf)
+    cmdbuf.createMsgCommand(self.command["detect"], msgBuf)
+    self.adaptor.send( cmdbuf.getEncodedDataCommand() )
 
-    sendBuf = cmdbuf.getEncodedDataCommand()
-    self.adaptor.send(sendBuf)
-#    self.adaptor.reader.printPacket( sendBuf ) 
     data = self.adaptor.recv_data(4, 2.0)
     if data :
-      head = self.adaptor.getParser().unmarshalUShort()
-      ssize = self.adaptor.getParser().unmarshalUShort()
-      data = self.adaptor.recv_data(ssize, 2.0)
+      head,ssize = self.adaptor.getParser().unmarshal('HH')
+      data = self.adaptor.recv_data(ssize-4, 2.0)
       if data :
         obj = data.split(',')
         n=obj.pop(0)
@@ -693,8 +670,75 @@ class ViewService(SigService):
         return True
       else:
         pass
-   
     return False
 
+  def captureView(self, cam_id, colorType, imgSize):
+    msgBuf = "%s,%d," % (self.name, cam_id)
 
+    cmdbuf = self.adaptor.getParser()
+    cmdbuf.createMsgCommand(self.command["capture"], msgBuf)
+    self.adaptor.send( cmdbuf.getEncodedDataCommand() )
 
+    data = self.adaptor.recv_data(4, 2.0)
+    if data :
+      header, ssize = self.adaptor.getParser().unmarshal('HH')
+      if header != 3:
+        print "Invalid reply: ", header, ssize
+        return None
+
+      if ssize == 1:
+        ssize = 230400 # 320x240x3
+        colorType = 'RGB24'
+        imgSize = '320x240'
+
+      imgdata = self.adaptor.recv_data(ssize, 2.0)
+      if imgdata is None or len(imgdata) != ssize :
+        print len(imgdata)
+        return None
+
+      return ViewImage(imgdata, ViewImageInfo('WinBMP', colorType, imgSize))
+ 
+#
+#
+#
+from PIL import Image
+#import opencv
+
+class ViewImage:
+  def __init__(self, img, info):
+    self.buffer=img
+    self.info = info
+    print info.type()
+    print info.size()
+    self.image = Image.fromstring(info.type(), info.size(), img, "raw", "BGR")
+    
+  def getBuffer(self):
+    return self.buffer
+
+  def saveAsWindowsBMP(self, fname):
+    print "save file ....", fname
+    self.image.save(fname)
+    pass
+
+class ViewImageInfo:
+  def __init__(self, fmt, ctype, size):
+    self.fmt=fmt
+    self.colorType = ctype
+    self.imageSize = size
+    
+  def type(self):
+    if self.colorType == "RGB24":
+      return 'RGB'
+    elif self.colorType == "RGB32":
+      return 'RGBA'
+    else:
+      print "ERROR: Invalid color type"
+      return None
+
+  def size(self):
+    size = self.imageSize.split("x")
+    if len(size) >= 2:
+      return (int(size[0]), int(size[1]))
+    else:
+      print "ERROR: Invalid image size"
+      return None
