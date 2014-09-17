@@ -50,15 +50,23 @@ class SigObjAttribute(SigMarshaller):
 #      sigcomm.SigMarshaller <--- SigObjPart
 #
 class SigObjPart(SigMarshaller):
-  def __init__(self, data):
+  def __init__(self, owner, data):
     SigMarshaller.__init__(self, data)
     self.name = ''
+    self.owner = owner
     self.id=None
     self.type=None
     self.pos=[0,0,0]
     self.quaternion=[0,0,0,0]
     self.partsValue=None
-
+  
+  #
+  def controller(self):
+    return self.owner.controller
+  
+  #
+  #
+  #
   def parse(self):
     datalen,self.id,type,self.name = self.unmarshal('HIHS')      
 
@@ -140,6 +148,21 @@ class SigObjPart(SigMarshaller):
   def qz(self, val=None):
     return self.quaternion_val(3, val)
 
+  def graspObj(self, objname):
+    msg = "%s,%s,%s," % (self.owner.getName(), self.name, objname)
+    controller = self.controller()
+    marshaller = self.controller().getMarshaller()
+    marshaller.createMsgCommand(cmdDataType['REQUEST_GRASP_OBJECT'], msg)
+    controller.sendData(marshaller.getEncodedDataCommand())
+
+
+  def releaseObj(self):
+    msg = "%s,%s," % (self.owner.getName(), self.name)
+    controller = self.controller()
+    marshaller = self.controller().getMarshaller()
+    marshaller.createMsgCommand(cmdDataType['REQUEST_RELEASE_OBJECT'], msg)
+    controller.sendData(marshaller.getEncodedDataCommand(), 0)
+
 #
 #  SimObj
 #
@@ -178,6 +201,11 @@ class SigSimObj:
       self.attributes[attribute.name] = attribute
 
       offset = offset+datalen 
+  #
+  #
+  #
+  def getName(self):
+    return self.name
 
   #
   #  Parse parts info from  simserver
@@ -193,12 +221,22 @@ class SigSimObj:
       body.offset = offset
       datalen, = body.unmarshal('H')      
 
-      part = SigObjPart(data[offset:offset+datalen])
+      part = SigObjPart(self, data[offset:offset+datalen])
       part.parse()
       self.parts[part.name] = part
 
       offset = offset+datalen
-
+  #
+  #
+  def getParts(self, name):
+    try:
+      return self.parts[name]
+    except:
+      pass
+    return None
+  #
+  #
+  #
   def dynamics(self):
     try:
       return self.attributes['dynamics'].value
@@ -211,7 +249,7 @@ class SigSimObj:
   def getPosition(self):
     self.updatePosition()
     self.controller.waitForReply()
-    return self.parts['body'].getPos()
+    return Position(self.parts['body'].getPos())
 
   def setCurrentPosition(self, x, y, z):
     self.parts['body'].setPos(x, y, z)
@@ -250,7 +288,7 @@ class SigSimObj:
   def getRotation(self):
     self.updateRotation()
     self.controller.waitForReply()
-    return self.parts['body'].getQuaternion()
+    return Rotation(self.parts['body'].getQuaternion())
 
   def setRotation(self, qw, qx, qy, qz, abs=1):
     self.parts['body'].setQuaternion(qw, qx, qy, qz)
@@ -339,18 +377,24 @@ class Position:
     else:
       pos = (0,0,0)
    
-    self.x=pos[0]
-    self.y=pos[1]
-    self.z=pos[2]
+    self._x=pos[0]
+    self._y=pos[1]
+    self._z=pos[2]
 
-  def x(self):
-    return self.x
+  def x(self, val=None):
+    if not val is None:
+      self._x=val
+    return self._x
 
-  def y(self):
-    return self.y
+  def y(self, val=None):
+    if not val is None:
+      self._y=val
+    return self._y
 
-  def z(self):
-    return self.z
+  def z(self, val=None):
+    if not val is None:
+      self._z=val
+    return self._z
 #
 #
 #
@@ -363,20 +407,28 @@ class Rotation:
     else:
       rot = (0,0,0,0)
    
-    self.qw=pos[0]
-    self.qx=pos[1]
-    self.qy=pos[2]
-    self.qz=pos[3]
+    self._qw=rot[0]
+    self._qx=rot[1]
+    self._qy=rot[2]
+    self._qz=rot[3]
 
-  def qw(self):
-    return self.qw
+  def qw(self, val=None):
+    if not val is None:
+      self._qw=val
+    return self._qw
 
-  def qx(self):
-    return self.qx
+  def qx(self, val=None):
+    if not val is None:
+      self._qx=val
+    return self._qx
 
-  def qy(self):
-    return self.qy
+  def qy(self, val=None):
+    if not val is None:
+      self._qy=val
+    return self._qy
 
-  def qz(self):
-    return self.qz
+  def qz(self, val=None):
+    if not val is None:
+      self._qz=val
+    return self._qz
 

@@ -28,7 +28,7 @@ class SendController(sig.SigController):
       obj = self.getObj()
       pos = obj.getPosition()
 
-      obj.setPosition(pos[0], pos[1], pos[2]  +20)
+      obj.setPosition(pos.x(), pos.y(), pos.z()  +20)
       msg = "Hello!!"
     #  self.sendMsg("robot_000", msg)
       self.broadcastMsg(msg, 300.0)

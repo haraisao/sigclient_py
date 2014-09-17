@@ -29,12 +29,13 @@ class SigCmdReader(SigCommReader):
   # check command format and invoke 
   #
   def checkCommand(self):
+    result = -1
+#    while self.checkBuffer() :
     res = self.parser.checkDataCommand(self.buffer, self.current)
-#    print "checkCommand:", res
 
     if res > 0:
       if self.cmdHandler :
-#        print "Invoke Handler %d, %d" % (res, len(self.buffer))
+   #     print "Invoke Handler %d, %d" % (res, len(self.buffer))
         self.cmdHandler.invoke(res)
       return 0
 
@@ -46,23 +47,32 @@ class SigCmdReader(SigCommReader):
       res = self.parser.checkMessageCommand(self.buffer, self.current)
 #      print "checkCommand:checkMessageCommand", res
       if res is None:
-        print "Invalid reply!!"
+        print "Invalid reply!!, clear current buffer"
         self.printPacket(self.buffer)
-        self.skipBuffer(4)
-        return -1
+        self.clearBuffer()
+#        pos = self.buffer.find('\xdc\xba')
+#        if pos < 0:
+#          self.clearBuffer()
+#        else:
+#          self.printPacket( self.buffer[:pos+2] )
+#          self.clearBuffer(pos+2)
+#          print "-------------------------------------"
       else:
         if self.msgHandler :
           self.msgHandler.invoke(res)
+        result = 0
     else:
       print "Unknown error", res
-      return -1
+
+    return result
 
   #
   # overwrite 'parse'
   #
   def parse(self, data):
     SigCommReader.parse(self, data)
-    self.checkCommand()
+    while self.checkBuffer():
+      self.checkCommand()
     
 #
 #  Reader for ControllerData
@@ -77,19 +87,42 @@ class SigDataReader(SigCommReader):
   # check command format and invoke 
   #
   def checkCommand(self):
+    len = 0
     try:
       cmd = self.command.pop(0)
+
       if cmd == cmdDataType['REQUEST_GET_ENTITY_POSITION']:
         self.setObjPosition(self.buffer)
+        len=self.parser.offset
 
       elif cmd == cmdDataType['REQUEST_SET_ENTITY_POSITION']:
         pass
 
       elif cmd == cmdDataType['REQUEST_GET_ENTITY_ROTATION']:
         self.setObjRotation(self.buffer)
+        len=self.parser.offset
 
       elif cmd == cmdDataType['REQUEST_SET_ENTITY_ROTATION']:
         pass
+
+      elif cmd == cmdDataType['REQUEST_GRASP_OBJECT']:
+        self.parser.setBuffer(self.buffer)
+        result, = self.parser.unmarshal('H')
+        len=self.parser.offset
+        if result == 0:
+          print "Success to grasp the object."
+        elif result == 1:
+          print "Fail to grasp, no object found."
+        elif result == 2:
+          print "Already grasp the object "
+        elif result == 3:
+          print "Already grasp an other object "
+        elif result == 4:
+          print "Fail to grasp, out of reach."
+        elif result == 5:
+          print "Fail to grasp, the target is too far."
+        else:
+          print "Unknown ERROR in graspObj"
 
       elif cmd == "cmd:%d" % cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT']:
         print "[INFO] Connect DataPort"
@@ -104,6 +137,8 @@ class SigDataReader(SigCommReader):
       print "No such command registered: ", cmd
       self.printPacket(self.buffer)
 
+#    print "clear Buffer len: ", len
+#    self.clearBuffer(len)
     self.clearBuffer()
 
   #
@@ -113,7 +148,6 @@ class SigDataReader(SigCommReader):
     return self.owner.getObj()
 
   def setObjPosition(self, data):
-    print "Call setObjPosision"
     self.parser.setBuffer(data)
     success, x, y, z = self.parser.unmarshal('Bddd')
 
@@ -130,7 +164,7 @@ class SigDataReader(SigCommReader):
     if success :
       self.getSimObj().setCurrentRotation(qw, qx, qy, qz)
     else:
-      print "Fail to getRotation" 
+      print "Fail to setObjRotation" 
     return
 
   #
@@ -297,7 +331,8 @@ class SigMessageHandler:
     elif msg[0] == cmdType['SEND_MESSAGE']:
       self.sendMsg(msg)
     else:
-      self.reader.printPacket(cmd)
+#      self.reader.printPacket(cmd)
+      pass
 
 #
 #  global function for thread excution.
@@ -391,6 +426,15 @@ class SigController(SigClient):
     self.request_obj=False
     self.setEC(ecclass)
     self.mutex=threading.Lock()
+
+  #
+  #
+  def getName(self):
+    return self.name
+
+  def getMarshaller(self):
+    return self.cmdbuf
+ 
   #
   #  set Execution Context
   #

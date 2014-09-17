@@ -59,7 +59,7 @@ class RobotController(sig.SigController):
        dz = 0.0
        dx = math.sin(theta) * self.vel
        dz = math.cos(theta) * self.vel
-       my.setPosition(pos[0] + dx, pos[1], pos[2] + dz)
+       my.setPosition(pos.x() + dx, pos.y(), pos.z() + dz)
 
      else:
        pass

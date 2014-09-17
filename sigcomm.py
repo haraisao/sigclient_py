@@ -478,10 +478,45 @@ class SigCommReader:
       self.current = 0
     return 
 
-  def clearBuffer(self):
-    if self.buffer : del self.buffer
-    self.buffer = ""
-    self.current = 0
+  def clearBuffer(self, n=0):
+    if n > 0 :
+#      self.printPacket( self.buffer[:n] )
+      self.buffer = self.buffer[n:]
+      self.current = 0
+    else:
+      if self.buffer : del self.buffer
+      self.buffer = ""
+      self.current = 0
+
+  def checkBuffer(self):
+    try:
+      h_pos = self.buffer.find('\xab\xcd', self.current)
+      f_pos = self.buffer.find('\xdc\xba', self.current)
+
+      if h_pos < 0 and f_pos >= 0:
+         self.buffer=self.buffer[f_pos+2:]
+         self.current = 0
+
+      if len(self.buffer) > self.current :
+        res = self.parser.checkDataCommand(self.buffer, self.current)
+        if res > 0:
+          return True
+
+        elif res == -1:
+          res = self.parser.checkMessageCommand(self.buffer, self.current)
+          if res :
+            return True
+
+        self.buffer = self.buffer[self.current:]
+        self.current = 0
+    except:
+      print "ERR in checkBuffer"
+      self.printPacket(self.buffer)
+      self.buffer=""
+      pass
+
+    return False
+     
 
   #
   #  extract data from self.buffer 
@@ -583,7 +618,7 @@ class SigMarshaller:
             self.cmdsize = size - self.cmdheaderMarshaller.size - self.cmdfooterMarshaller.size
             return size
           else:
-            print "Invalidl footer"
+            print "#Invalidl footer"
             self.cmdsize = 0
             return -2
         else:
@@ -704,7 +739,7 @@ class SigMarshaller:
       elif x == 'S':
         res.append(self.unmarshalString())
     return res
-  #
+
   #  generate command
   #
   def createCommand(self):
@@ -876,11 +911,17 @@ class SigMsgEvent:
     self.parse(msg)
 
   def parse(self, msg):
-    pos1 = msg.find(',')
-    self.sender = msg[:pos1]
-    pos2 = msg.find(',', pos1+1)
-    self.size = int(msg[pos1+1:pos2])
-    self.message = msg[pos2+1:pos2+1+self.size]
+    try:
+      pos1 = msg.find(',')
+      self.sender = msg[:pos1]
+      pos2 = msg.find(',', pos1+1)
+      self.size = int(msg[pos1+1:pos2])
+      self.message = msg[pos2+1:pos2+1+self.size]
+    except:
+      print "Invalid Message[%d]: %s." % (len(msg), msg)
+      self.size = 0
+      self.message = ""
+     
 
   def getSender(self):
     return self.sender
