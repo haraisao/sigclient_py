@@ -892,8 +892,22 @@ class SigDataCommand(SigMarshaller):
   #
   #  extract remains from the buffer
   #
-  def getRemains(self):
-    return self.buffer[self.offset:]
+  def getRemains(self, size=-1):
+    remainsLen = self.remainsSize()
+    if size > 0 :
+      if remainsLen >= size:
+        res = self.buffer[self.offset:self.offset+size]
+        self.offset += size
+        self.buffer = self.buffer[self.offset:]
+        self.bufsize = len(self.buffer)
+        return res
+      else:
+        return None
+    else:
+      return self.buffer[self.offset:]
+
+  def remainsSize(self):
+    return len(self.buffer[self.offset:])
 
 #
 # Events

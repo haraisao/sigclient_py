@@ -172,6 +172,7 @@ class SigSimObj:
     self.name=name
     self.parts = {}
     self.attributes = {}
+    self.joints={}
     self.updateTime=0.0
     self.controller = ctrl
 
@@ -364,6 +365,39 @@ class SigSimObj:
                                  ('d', qw), ('d', qx), ('d', qy), ('d', qz))
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
+
+  def addJointTorque(self, joint_name, torque):
+    if self.dynamics() :
+      self.cmdbuf.createCommand()
+      self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_ADD_JOINT_TORQUE'], name=self.name)
+      self.cmdbuf.marshal('Sd', joint_name, torque)
+      self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
+    else:
+      print "addJointTorque : dynamics is off..."
+    return
+
+  def setJointVelocity(self, joint_name, vel, mx):
+    self.setAngularVelocityToJoint(joint_name, vel, mx)
+    return
+
+  def setAngularVelocityToJoint(self, joint_name, vel, mx):
+    msg = "%s,%s," % (self.name, joint_name)
+    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_SET_JOINT_VELOCITY'], msg,
+                                 ('d', vel), ('d', mx))
+    self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
+    return
+
+  #
+  #
+  #
+  def getAllJointAngles(self):
+    msg = "%s," % (self.name)
+    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_GET_ALL_JOINT_ANGLES'], msg)
+    self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
+
+    self.controller.waitForReply()
+
+    return self.joints
 
 #
 #

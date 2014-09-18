@@ -124,6 +124,23 @@ class SigDataReader(SigCommReader):
         else:
           print "Unknown ERROR in graspObj"
 
+      elif cmd == cmdDataType['REQUEST_GET_ALL_JOINT_ANGLES']:
+        self.parser.setBuffer(self.buffer)
+        recvSize, jointSize = self.parser.unmarshal('HH')
+        recvSize -= struct.calcsize('HH')
+        msg = self.parser.getRemains(recvSize)
+        if msg is None:
+          print "too short!!"
+          self.command.insert(0, cmd)
+          return
+        else:
+          msg_ar = msg.split(',')
+          obj = self.getSimObj()
+          for i in range(jointSize) :
+            jname = msg_ar[i*2]
+            ang = msg_ar[i*2+1]
+            obj.joints[jname] = float(ang)
+
       elif cmd == "cmd:%d" % cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT']:
         print "[INFO] Connect DataPort"
         pass
@@ -135,11 +152,11 @@ class SigDataReader(SigCommReader):
 
     except:
       print "No such command registered: ", cmd
-      self.printPacket(self.buffer)
+    #  self.printPacket(self.buffer)
 
 #    print "clear Buffer len: ", len
-#    self.clearBuffer(len)
-    self.clearBuffer()
+    self.clearBuffer(len)
+#    self.clearBuffer()
 
   #
   #  commands...
