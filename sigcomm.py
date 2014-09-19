@@ -76,7 +76,7 @@ class SocketAdaptor(threading.Thread):
   #
   def connect(self, async=True):
     if self.mainloop :
-      return
+      return 1
 
     try:
       self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -86,6 +86,7 @@ class SocketAdaptor(threading.Thread):
       print "Connection error"
       self.close()
       return 0
+
     except:
       print "Error in connect " , self.host, self.port
       self.close()
@@ -910,6 +911,20 @@ class SigDataCommand(SigMarshaller):
     return len(self.buffer[self.offset:])
 
 #
+#  marshalling command 
+#     SigMarshaller <--- SigSrvCommand
+#
+class SigSrvCommand(SigDataCommand):
+  def __init__(self, buffer=''):
+    SigDataCommand.__init__(self, buffer)
+
+  def createMsgCommand(self,  sender, cmd, msg):
+    msgBuf="%s,%d,%s" % (sender, len(msg), msg)
+    self.createCommand()
+    size = len(msgBuf) + struct.calcsize("HH")
+    self.marshal('HHs', cmd, size, msgBuf)
+
+#
 # Events
 #
 
@@ -942,6 +957,14 @@ class SigMsgEvent:
 
   def getMsg(self):
     return self.message
+
+  def setData(self, data, size):
+    data_ar = data.split(',')
+    self.sender = data_ar.pop(0)
+    self.size = int(data_ar.pop(0))
+    self.message = ','.join(data_ar)
+    return 
+#
 #
 #  Collision Event
 #     SigMarshaller <--- SigCollisionEvent

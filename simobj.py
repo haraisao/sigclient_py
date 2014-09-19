@@ -399,6 +399,14 @@ class SigSimObj:
 
     return self.joints
 
+  #
+  # Wheel...
+  #
+  def setWheelProperty(self, lname, lconsumtion, lmax, lunit, lnose, lres, lmaxf, 
+                             rname, rconsumtion, rmax, runit, rnose, rres, rmaxf) :
+    return
+  def differentialWheelSetSpeed(self, lvel, rvel):
+    return
 #
 #
 #

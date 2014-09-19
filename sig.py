@@ -185,6 +185,14 @@ class SigDataReader(SigCommReader):
     return
 
   #
+  # Camera...
+  #
+  def getCamFOV(self):
+    return 
+
+  def getCamAs(self):
+    return 
+  #
   #  for synchronization
   #
   def setCommand(self, cmd):
@@ -222,7 +230,7 @@ class SigDataReader(SigCommReader):
 #
 class SigServiceReader(SigCommReader): 
   def __init__(self, owner):
-    SigCommReader.__init__(self, owner, SigDataCommand())
+    SigCommReader.__init__(self, owner, SigSrvCommand())
     self.command = []
 
   #
@@ -506,11 +514,7 @@ class SigController(SigClient):
       if waitFlag :
         while self.checkRequest() :
           pass
-
-      try:
         return self.objs[name]
-      except:
-        return None
   #
   #  create SimObj, called by the cmdHandler
   #
@@ -589,6 +593,9 @@ class SigController(SigClient):
   #
   #  for Service
   #
+  def checkSerice(self, name):
+    return False
+
   def connectToService(self, name):
     try:
       adaptor = self.services[name]
@@ -686,7 +693,7 @@ class SigController(SigClient):
 #
 #  SerivceAdaptor
 #
-class SigService:
+class SigServiceBase:
   def __init__(self, owner):
     self.name = ""
     self.owner = owner
@@ -703,14 +710,13 @@ class SigService:
 
 #
 #  ViewService
-#    SigService <--- ViewService
+#    SigServiceBase <--- ViewService
 #
-class ViewService(SigService):
+class ViewService(SigServiceBase):
   def __init__(self, owner, adaptor):
-    SigService.__init__(self, owner)
+    SigServiceBase.__init__(self, owner)
     self.adaptor = adaptor 
-    self.command={"capture":5, "detect": 7,
-                }
+    self.command={"capture":5, "distance":6, "detect": 7, }
 
   def detectEntities(self, cam_id):
     objs = []
@@ -759,7 +765,80 @@ class ViewService(SigService):
         return None
 
       return ViewImage(imgdata, ViewImageInfo('WinBMP', colorType, imgSize))
+    return None
+  #
+  #  Distance Sensor
+  #
+  def distanceSendor(self, start=0.0, end=255.0, camId=1, cType="GREY8"):
+    self.sendDSRequest(0, start, end, camId, ctype)
+    data = self.adaptor.recv_data(4, 2.0)
+    if data :
+      header, ssize = self.adaptor.getParser().unmarshal('HH')
+      if header != 3:
+        print "Invalid reply: ", header, ssize
+        return None
+
+      if ssize == 2:
+        ssize = 1
+      distdata = self.adaptor.recv_data(ssize, 2.0)
+      if distdata is None or len(distdata) != ssize :
+        return None
+
+      return distdata[0]
+    
+    return None
+
+  def distanceSendor1D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x1"):
+    self.sendDSRequest(1, start, end, camId, ctype)
+    if data :
+      header, ssize = self.adaptor.getParser().unmarshal('HH')
+      if header != 3:
+        print "Invalid reply: ", header, ssize
+        return None
+
+      if ssize == 3:
+        ssize = 320
+        cType = 'GREY8'
+        imgSize = '320x1'
+
+      imgdata = self.adaptor.recv_data(ssize, 2.0)
+      if imgdata is None or len(imgdata) != ssize :
+        print len(imgdata)
+        return None
+
+      return ViewImage(imgdata, ViewImageInfo('WinBMP', cType, imgSize))
+
+    return None
  
+  def distanceSendor2D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x240"):
+    self.sendDSRequest(2, start, end, camId, ctype)
+    if data :
+      header, ssize = self.adaptor.getParser().unmarshal('HH')
+      if header != 3:
+        print "Invalid reply: ", header, ssize
+        return None
+
+      if ssize == 4:
+        ssize = 768000
+        cType = 'GREY8'
+        imgSize = '320x240'
+
+      imgdata = self.adaptor.recv_data(ssize, 2.0)
+      if imgdata is None or len(imgdata) != ssize :
+        print len(imgdata)
+        return None
+
+      return ViewImage(imgdata, ViewImageInfo('WinBMP', cType, imgSize))
+
+    return None
+
+  def sendDSRequest(self, type, start, end, camId, ctypee):
+    msgBuf = "%s,%d,%d,%f,%f," % (self.name, type, cam_id, start, end)
+
+    cmdbuf = self.adaptor.getParser()
+    cmdbuf.createMsgCommand(self.command["distance"], msgBuf)
+    self.adaptor.send( cmdbuf.getEncodedDataCommand() )
+    return
 #
 #
 #
@@ -770,29 +849,88 @@ class ViewImage:
   def __init__(self, img, info):
     self.buffer=img
     self.info = info
-    print info.type()
-    print info.size()
-    self.image = Image.fromstring(info.type(), info.size(), img, "raw", "BGR")
+    if info.type() == "L":
+      self.image = Image.fromstring("L", info.size(), img, "raw", "L")
+    else:
+      self.image = Image.fromstring(info.type(), info.size(), img, "raw", "BGR")
+    self.fov = 0.
+    self.asprct_ratio = 4.0/3.0
     
   def getBuffer(self):
     return self.buffer
 
+  def getBufferLength(self):
+    return len(self.buffer)
+
   def saveAsWindowsBMP(self, fname):
     print "save file ....", fname
     self.image.save(fname)
-    pass
+    return
 
+  def setBitImageAsWindowsBMP(self, bitImage):
+    print "Not Implemented."
+    return
+    
+  def getWidthBytes(self, w, bpp):
+    res = w * bpp
+    res += res % 4  #  Need?
+    return res 
+    
+  def calcBufferSize(self, info):
+    size=self.info.size()
+    if size :
+      return size[0] * size[1] * self.info.getByteParOnePixel()
+    return 0
+    
+  def getViewImageInfo(self):
+    return self.info
+
+  def getWidth(self):
+    return self.info.getWidth()
+
+  def getHeight(self):
+    return self.info.getHeight()
+
+  def getFOVy(self):
+    return self.fov
+
+  def setFOVy(self, val):
+    self.fov = val
+    return
+
+  def getFOVx(self):
+    return math.atan(math.tan(self.fov * 0.5) * self.aspect_ratio) * 2.0
+
+  def getAspectRatio(self):
+    return self.aspect_ratio
+
+  def setAspectRatio(self, val):
+    self.aspect_ratio = val
+    return 
+#
+#  ViewImageInfo:
+#   original: 
+#      color type(enum): COLORBIT_24, DEPTHBIT_8
+#      image size(enum): IMAGE_320X240, IMAGE_320X1
+#
+#   This implementation:
+#      color type(str): "RGB24", "RGB32", "GREY8"
+#      image size(str): "320x240", "320x1"
+#
 class ViewImageInfo:
   def __init__(self, fmt, ctype, size):
     self.fmt=fmt
     self.colorType = ctype
     self.imageSize = size
+    self.dataType = None
     
   def type(self):
-    if self.colorType == "RGB24":
+    if self.colorType in ("RGB24", "COLORBIT_24"):
       return 'RGB'
-    elif self.colorType == "RGB32":
+    elif self.colorType in ("RGB32", "COLORBIT_32"):
       return 'RGBA'
+    elif self.colorType in ("GREY8", "DEPTHBIT_8"):
+      return 'L'
     else:
       print "ERROR: Invalid color type"
       return None
@@ -804,3 +942,184 @@ class ViewImageInfo:
     else:
       print "ERROR: Invalid image size"
       return None
+
+  def setDataType(self):
+    return self.dataType
+
+  def setColorBitType(self):
+    return self.colorType
+
+  def Width(self):
+    return self.size()[0]
+
+  def Height(self):
+    return self.size()[1]
+
+  def getByteParOnePixel(self):
+    if self.colorType in ("RGB24", "COLORBIT_24"):
+      return 3
+    elif self.colorType in ("RGB32", "COLORBIT_32"):
+      return 4
+    elif self.colorType in ("GREY8", "DEPTHBIT_8"):
+      return  1
+    else:
+      print "ERROR: Invalid color type"
+      return 0
+
+
+#############################
+#
+#  SigService
+#    SigClient <--- SigService
+#
+class SigService(SigClient):
+  def __init__(self, name):
+    SigClient.__init__(self, name, "localhost", 9000)
+    self.serverAdaptor = None
+    self.viewerAdaptor = None
+    self.controllers = {}
+    self.entitiesName = []
+    self.serives = []
+    self.autoExitLoop = False
+    self.autoExitProc = False
+    self.onLoop = False
+    return
+
+  def sendMsg(self, to_name, msg, distance=-1.0):
+    if type(to_name) == types.StringType:
+      msgBuf = "%.5d,%s,%f,1,%s,"  % (len(msg), msg, distance, to_name)
+
+    elif type(to_name) in (types.ListType, types.TupleType):
+      msgBuf = "%.5d,%s,%f,%d,%s, "  % (len(msg), msg, distance, len(to_name), ','.to_name)
+
+    else:
+      print "[ERR} invalid to_name", to_name
+      return
+   
+    msgLen = "%.5d" % (len(msgBuf) + 5)
+    msgBuf = msgLen + msgBuf   
+    self.send(msgBuf)
+    return
+
+  def sendMsgToCtrl(self, to_name, msg):
+    if to_name in self.services.keys():
+      cmdbuf = self.serverAdaptor.getParser()
+      cmdbuf.createMsgCommand(0x0002, msgBuf)
+      self.send(cmdbuf.getEncodedDataCommand())
+      
+      
+      return True
+    else:
+      pass
+    return False
+
+  def send(self, msg, flag=1):
+    self.serverAdaptor.send(msg, self.name)
+
+  def recv(self, size, timeout=2.0):
+    return self.serverAdaptor.recv_data(size, timeout)
+
+  def connect(self, host, port):
+    self.server = host 
+    self.port = port 
+    if self.serverAdaptor is None:
+      self.serverAdaptor = SocketAdaptor(self.srvReader,self.name+":srv", host, port)
+    res = self.serverAdaptor.connect(False)
+
+    if res != 1:
+      print "SigService: Fail to connect server [ %s:%d ]." % (host, port)
+      return False
+
+    self.send( "SIGMESSAGE,%s," % self.name )
+
+    data = self.serverAdaptor.recieve_data()
+    if data == -1 :
+      print "SigService: Fail to connect server [ %s:%d ]." % (host, port)
+    
+    if data == "SUCC" :
+      return True
+    elif data == "FAIL" :
+      print "SigService: Service name '%s' is already exist." % (host, port)
+    else :
+      print "SigService: Unkown reply, ", data
+
+    return False
+
+  def disconnect(self):
+    self.send("00004")
+    return
+
+  def disconnectFromController(self, entryName):
+    return
+
+  def disconnectFromAllController(self):
+    return
+
+  def disconnectFromViewer(self):
+    return
+
+  def startLoop(self, intval= -1.0):
+    return
+
+  def checkRecvData(self, timeout):
+    return
+
+  def connectToViewer(self):
+    return
+
+  def captureView(self, entryName, camID=1, cType="RGB24", imgSize="320x240"):
+    return None
+
+  def distanceSensor(self, entryName, offset=0.0, range=255.0, camID=1):
+    return None
+
+  def distanceSensor1D(self, entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x1"):
+
+    return None
+
+  def distanceSensor2D(self, entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x240"):
+
+    return None
+
+  def getDepthImage(self, entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x240"):
+
+    return None
+
+  def getName(self):
+    return self.name
+
+  def setName(self, name):
+    self.name = name
+    return 
+
+  def getNewServiceNum(self):
+    return len(self.services)
+
+  def getAllOtherSerives(self):
+    return self.services
+
+  def getAllConnectedEntitiesName(self):
+    return self.entitiesName
+
+  def getControllerSocket(self, name):
+    return None
+
+  def getConnectedControllerNum(self):
+    return len(self.controllers)
+
+  def setAutoExitLoop(self, flag):
+    self.autoExitLoop = flag
+    return 
+
+  def setAutoExitProc(self, flag):
+    self.autoExitProc = flag
+    return 
+
+  def onInit(self, evt):
+    return
+
+  def onRecvMsg(self, evt):
+    return
+
+  def onAction(self, evt):
+    return
