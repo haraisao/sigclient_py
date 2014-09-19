@@ -405,6 +405,23 @@ class SigClient:
   #
   def sendCmd(self, msg):
     self.cmdAdaptor.send(msg, self.name)
+  
+  #
+  #
+  #
+  def getAllSockets(self):
+    res = []
+    for x in self.services.values():
+      res.append(x.socket)
+    return res
+    
+  def waitForRequestSocket(self, timeout=0.1):
+    try:
+      rready, wready, xready = select.select(self.getAllSockets(), [], [], timeout)
+      return rready
+    except:
+      print "Error in wait_for_read"
+      return None
 
   #
   #  flag for waiting reply
@@ -966,160 +983,3 @@ class ViewImageInfo:
       print "ERROR: Invalid color type"
       return 0
 
-
-#############################
-#
-#  SigService
-#    SigClient <--- SigService
-#
-class SigService(SigClient):
-  def __init__(self, name):
-    SigClient.__init__(self, name, "localhost", 9000)
-    self.serverAdaptor = None
-    self.viewerAdaptor = None
-    self.controllers = {}
-    self.entitiesName = []
-    self.serives = []
-    self.autoExitLoop = False
-    self.autoExitProc = False
-    self.onLoop = False
-    return
-
-  def sendMsg(self, to_name, msg, distance=-1.0):
-    if type(to_name) == types.StringType:
-      msgBuf = "%.5d,%s,%f,1,%s,"  % (len(msg), msg, distance, to_name)
-
-    elif type(to_name) in (types.ListType, types.TupleType):
-      msgBuf = "%.5d,%s,%f,%d,%s, "  % (len(msg), msg, distance, len(to_name), ','.to_name)
-
-    else:
-      print "[ERR} invalid to_name", to_name
-      return
-   
-    msgLen = "%.5d" % (len(msgBuf) + 5)
-    msgBuf = msgLen + msgBuf   
-    self.send(msgBuf)
-    return
-
-  def sendMsgToCtrl(self, to_name, msg):
-    if to_name in self.services.keys():
-      cmdbuf = self.serverAdaptor.getParser()
-      cmdbuf.createMsgCommand(0x0002, msgBuf)
-      self.send(cmdbuf.getEncodedDataCommand())
-      
-      
-      return True
-    else:
-      pass
-    return False
-
-  def send(self, msg, flag=1):
-    self.serverAdaptor.send(msg, self.name)
-
-  def recv(self, size, timeout=2.0):
-    return self.serverAdaptor.recv_data(size, timeout)
-
-  def connect(self, host, port):
-    self.server = host 
-    self.port = port 
-    if self.serverAdaptor is None:
-      self.serverAdaptor = SocketAdaptor(self.srvReader,self.name+":srv", host, port)
-    res = self.serverAdaptor.connect(False)
-
-    if res != 1:
-      print "SigService: Fail to connect server [ %s:%d ]." % (host, port)
-      return False
-
-    self.send( "SIGMESSAGE,%s," % self.name )
-
-    data = self.serverAdaptor.recieve_data()
-    if data == -1 :
-      print "SigService: Fail to connect server [ %s:%d ]." % (host, port)
-    
-    if data == "SUCC" :
-      return True
-    elif data == "FAIL" :
-      print "SigService: Service name '%s' is already exist." % (host, port)
-    else :
-      print "SigService: Unkown reply, ", data
-
-    return False
-
-  def disconnect(self):
-    self.send("00004")
-    return
-
-  def disconnectFromController(self, entryName):
-    return
-
-  def disconnectFromAllController(self):
-    return
-
-  def disconnectFromViewer(self):
-    return
-
-  def startLoop(self, intval= -1.0):
-    return
-
-  def checkRecvData(self, timeout):
-    return
-
-  def connectToViewer(self):
-    return
-
-  def captureView(self, entryName, camID=1, cType="RGB24", imgSize="320x240"):
-    return None
-
-  def distanceSensor(self, entryName, offset=0.0, range=255.0, camID=1):
-    return None
-
-  def distanceSensor1D(self, entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x1"):
-
-    return None
-
-  def distanceSensor2D(self, entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x240"):
-
-    return None
-
-  def getDepthImage(self, entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x240"):
-
-    return None
-
-  def getName(self):
-    return self.name
-
-  def setName(self, name):
-    self.name = name
-    return 
-
-  def getNewServiceNum(self):
-    return len(self.services)
-
-  def getAllOtherSerives(self):
-    return self.services
-
-  def getAllConnectedEntitiesName(self):
-    return self.entitiesName
-
-  def getControllerSocket(self, name):
-    return None
-
-  def getConnectedControllerNum(self):
-    return len(self.controllers)
-
-  def setAutoExitLoop(self, flag):
-    self.autoExitLoop = flag
-    return 
-
-  def setAutoExitProc(self, flag):
-    self.autoExitProc = flag
-    return 
-
-  def onInit(self, evt):
-    return
-
-  def onRecvMsg(self, evt):
-    return
-
-  def onAction(self, evt):
-    return
