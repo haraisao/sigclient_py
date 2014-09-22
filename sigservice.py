@@ -4,6 +4,7 @@
 import sys
 import os
 import struct
+import time
 import threading
 import sig
 
@@ -82,9 +83,10 @@ class SigServiceAdaptor(sig.SocketAdaptor):
       print "Terminate Service.."
       self.terminate()
       if  self.owner.autoExitProc :
+        self.owner.stopLoop()
         sys.exit(0)
       elif self.owner.autoExitLoop :
-        self.onLoop = False
+        self.owner.stopLoop()
       pass
 
     else:
@@ -107,8 +109,18 @@ class SigService(sig.SigClient):
     self.autoExitLoop = False
     self.autoExitProc = False
     self.onLoop = False
+    self.ec = None
+    self.setEC(None)
     return
 
+  #
+  #  set Execution Context
+  #
+  def setEC(self, ecclass):
+    if ecclass :
+      self.ecClass = ecclass
+    else:
+      self.ecClass = SigServiceEC
   #
   #
   #
@@ -210,7 +222,16 @@ class SigService(sig.SigClient):
     return
 
   def startLoop(self, intval= -1.0):
+    if self.ec is None:
+      self.ec = self.ecClass(self)
+      self.startTime=time.time()
+      self.ec.start()
     return
+
+  def stopLoop(self):
+    if self.ec :
+      self.ec.stop()
+      self.ec = None
 
   def checkRecvData(self, timeout):
     return
@@ -267,6 +288,7 @@ class SigService(sig.SigClient):
     return 
 
   def onInit(self, evt):
+    print "Call onInit"
     return
 
   def onRecvMsg(self, evt):
@@ -274,4 +296,22 @@ class SigService(sig.SigClient):
     return
 
   def onAction(self, evt):
-    return
+    print "Call onAction"
+    return 1.0
+
+class SigServiceEC(threading.Thread):
+  def __init__(self, srv, intval=1.0):
+    threading.Thread.__init__(self)
+    self.service = srv
+    self.mainloop = True
+    self.interval = intval
+
+  def run(self):
+    self.service.onInit(None)
+    while self.mainloop:
+      intval = self.service.onAction(None)
+      time.sleep(intval)
+
+  def stop(self):
+    self.mainloop = False
+    print "SigServiceEC stopped"
