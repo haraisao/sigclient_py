@@ -10,17 +10,20 @@ import sys
 import os
 import time
 import types
-from Quat import *
-from sigcomm import *
-from sig import *
+#from Quat import *
+import Quat
+#from sigcomm import *
+import sigcomm
+#from sig import *
+import sig
 
 #
 #   Attribute for SimObj
 #      sigcomm.SigMarshaller <--- SigObjAttribute
 #
-class SigObjAttribute(SigMarshaller):
+class SigObjAttribute(sigcomm.SigMarshaller):
   def __init__(self, data=''):
-    SigMarshaller.__init__(self, data)
+    sigcomm.SigMarshaller.__init__(self, data)
     self.name=''
     self.value=None
     self.valueType=None
@@ -49,9 +52,9 @@ class SigObjAttribute(SigMarshaller):
 #  CParts for SimObj
 #      sigcomm.SigMarshaller <--- SigObjPart
 #
-class SigObjPart(SigMarshaller):
+class SigObjPart(sigcomm.SigMarshaller):
   def __init__(self, owner, data):
-    SigMarshaller.__init__(self, data)
+    sigcomm.SigMarshaller.__init__(self, data)
     self.name = ''
     self.owner = owner
     self.id=None
@@ -168,7 +171,7 @@ class SigObjPart(SigMarshaller):
 #
 class SigSimObj:
   def __init__(self, name, ctrl):
-    self.cmdbuf=SigDataCommand()
+    self.cmdbuf = sigcomm.SigDataCommand()
     self.name=name
     self.parts = {}
     self.attributes = {}
@@ -188,7 +191,7 @@ class SigSimObj:
   #
   def setAttributes(self, data):
     bufsize = len(data)
-    attr = SigMarshaller(data)
+    attr = sigcomm.SigMarshaller(data)
 
     attrlen, = attr.unmarshal('H')
     offset=attr.offset
@@ -212,7 +215,7 @@ class SigSimObj:
   #  Parse parts info from  simserver
   #
   def setParts(self, data):
-    body = SigMarshaller(data)
+    body = sigcomm.SigMarshaller(data)
     bodylen, = body.unmarshal('H')      
 
     offset=body.offset
@@ -301,7 +304,7 @@ class SigSimObj:
     return 
 
   def setAxisAndAngle(self, x, y, z, ang):
-    quat = Quat(x, y, z, ang)
+    quat = Quat.Quat(x, y, z, ang)
     self.setRotation(quat.w, quat.x, quat.y, quat.z)
     return
 
@@ -405,6 +408,7 @@ class SigSimObj:
   def setWheelProperty(self, lname, lconsumtion, lmax, lunit, lnose, lres, lmaxf, 
                              rname, rconsumtion, rmax, runit, rnose, rres, rmaxf) :
     return
+
   def differentialWheelSetSpeed(self, lvel, rvel):
     return
 #

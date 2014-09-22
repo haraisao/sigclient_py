@@ -9,16 +9,18 @@ import sys
 import os
 import time
 import types
-from sigcomm import *
-from simobj import *
+#from sigcomm import *
+import sigcomm
+#from simobj import *
+import simobj
 
 #
 #  Reader for ControllerCmd
 #     sigcomm.SigCommReader <--- SigCmdReader
 #
-class SigCmdReader(SigCommReader): 
+class SigCmdReader(sigcomm.SigCommReader): 
   def __init__(self, owner):
-    SigCommReader.__init__(self, owner, SigDataCommand())
+    sigcomm.SigCommReader.__init__(self, owner, sigcomm.SigDataCommand())
     self.setHandler( SigCmdHandler(self), SigMessageHandler(self))
 
   def setHandler(self, dhndlr, mhndlr):
@@ -70,7 +72,7 @@ class SigCmdReader(SigCommReader):
   # overwrite 'parse'
   #
   def parse(self, data):
-    SigCommReader.parse(self, data)
+    sigcomm.SigCommReader.parse(self, data)
     while self.checkBuffer():
       self.checkCommand()
     
@@ -78,9 +80,9 @@ class SigCmdReader(SigCommReader):
 #  Reader for ControllerData
 #     sigcomm.SigCommReader <--- SigDataReader
 #
-class SigDataReader(SigCommReader): 
+class SigDataReader(sigcomm.SigCommReader): 
   def __init__(self, owner):
-    SigCommReader.__init__(self, owner, SigDataCommand())
+    sigcomm.SigCommReader.__init__(self, owner, sigcomm.SigDataCommand())
     self.command = []
 
   #
@@ -220,7 +222,7 @@ class SigDataReader(SigCommReader):
   # overwrite 'parse'
   #
   def parse(self, data):
-    SigCommReader.parse(self, data)
+    sigcomm.SigCommReader.parse(self, data)
     self.checkCommand()
     self.owner.finishReply()
 
@@ -228,9 +230,9 @@ class SigDataReader(SigCommReader):
 #  Reader for SigService
 #     sigcomm.SigCommReader <--- SigServiceReader
 #
-class SigServiceReader(SigCommReader): 
+class SigServiceReader(sigcomm.SigCommReader): 
   def __init__(self, owner):
-    SigCommReader.__init__(self, owner, SigSrvCommand())
+    sigcomm.SigCommReader.__init__(self, owner, sigcomm. SigSrvCommand())
     self.command = []
 
   #
@@ -270,7 +272,7 @@ class SigServiceReader(SigCommReader):
   # overwrite 'parse'
   #
   def parse(self, data):
-    SigCommReader.parse(self, data)
+    sigcomm.SigCommReader.parse(self, data)
     self.checkCommand()
 #    self.owner.finishReply()
 
@@ -282,7 +284,7 @@ class SigCmdHandler:
   def __init__(self, rdr):
     self.reader = rdr
     self.comm = rdr.owner
-    self.command = SigDataCommand()
+    self.command = sigcomm.SigDataCommand()
 
   def invoke(self, n):
     data = self.reader.read(n, 1)
@@ -341,7 +343,7 @@ class SigMessageHandler:
       message = self.reader.read(msg[1], 1)
       if padding_size > 0:
         self.reader.read(padding_size, 1)
-#      self.comm.onRecvMsg(SigMsgEvent(message))    
+#      self.comm.onRecvMsg(sigcomm.SigMsgEvent(message))    
       thr = threading.Thread(target=runOnRecvMsg, args=(self.comm, message))    
       thr.start()
 
@@ -365,7 +367,7 @@ class SigMessageHandler:
 #    This function called by the SigMessageHandler.sendMsg function.
 #
 def runOnRecvMsg(comm, msg):
-  comm.onRecvMsg(SigMsgEvent(msg))
+  comm.onRecvMsg(sigcomm.SigMsgEvent(msg))
 
 #
 #  Foundmental client class for SIGVerse:
@@ -393,11 +395,11 @@ class SigClient:
   #
   def connect(self):
     if self.cmdAdaptor is None:
-      self.cmdAdaptor = SocketAdaptor(self.cmdReader, self.name+":cmd", self.server, self.port)
+      self.cmdAdaptor = sigcomm.SocketAdaptor(self.cmdReader, self.name+":cmd", self.server, self.port)
     self.cmdAdaptor.connect()
 
     if self.dataAdaptor is None:
-      self.dataAdaptor = SocketAdaptor(self.dataReader, self.name+":data", self.server, self.port)
+      self.dataAdaptor = sigcomm.SocketAdaptor(self.dataReader, self.name+":data", self.server, self.port)
     self.dataAdaptor.connect()
 
   #
@@ -460,7 +462,7 @@ class SigClient:
 class SigController(SigClient):
   def __init__(self, name, host="localhost", port=9000, ecclass=None):
     SigClient.__init__(self, name, host, port)
-    self.cmdbuf=SigDataCommand()
+    self.cmdbuf = sigcomm.SigDataCommand()
     self.ec = None
     self.objs={}
     self.startSimTime = 0.0
@@ -484,7 +486,7 @@ class SigController(SigClient):
     if ecclass :
       self.ecClass = ecclass
     else:
-      self.ecClass = SigControllerEC
+      self.ecClass = sigcomm.SigControllerEC
   #
   #  connetc to simserver
   #
@@ -549,7 +551,7 @@ class SigController(SigClient):
       off = self.cmdbuf.offset
       datalen,id,name,klass = self.cmdbuf.unmarshal('HISS')
 
-      obj = SigSimObj(name, self)
+      obj = simobj.SigSimObj(name, self)
       obj.updateTime = m_time
 
       attached,opts,offset1,offset2 = self.cmdbuf.unmarshal('HIHH')
@@ -565,7 +567,7 @@ class SigController(SigClient):
   # invoke onCollision
   #
   def invokeOnCollision(self, data):
-    evt = SigCollisionEvent(data)
+    evt = sigcomm.SigCollisionEvent(data)
     evt.parse()
     self.onCollision(evt)
     return
@@ -624,7 +626,7 @@ class SigController(SigClient):
       res = 0
       while res != 1 and count < 10:
         newport += 1
-        srvAdaptor=SocketAdaptor(self.srvReader,self.name+(":srv%d" % newport),self.server,newport)
+        srvAdaptor = sigcomm.SocketAdaptor(self.srvReader,self.name+(":srv%d" % newport),self.server,newport)
         res = srvAdaptor.bind()
         count += 1
 

@@ -1,4 +1,7 @@
+#
+#
 import math
+
 class Quat:
     """
         Quaternion Class

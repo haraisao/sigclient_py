@@ -3,18 +3,20 @@
 #
 import sys
 import os
-import struct
+#import struct
 import time
 import threading
+import sigcomm
 import sig
 
 #############################
 #
 #  SigService
 
-class SigServiceAdaptor(sig.SocketAdaptor):
+class SigServiceAdaptor(sigcomm.SocketAdaptor):
   def __init__(self, owner, reader, name, host, port):
-    sig.SocketAdaptor.__init__(self, reader, name, host, port)
+    sigcomm.SocketAdaptor.__init__(self, reader, name, host, port)
+    self.parser=sigcomm.SigSrvCommand()
     self.owner=owner
     self.buffer=""
     self.recieve_size = 0
@@ -31,8 +33,9 @@ class SigServiceAdaptor(sig.SocketAdaptor):
           if len(data) != 4:
             self.terminate()
 
-          cmd, size = struct.unpack_from('!HH', data)
-          self.recieve_size = size - 4
+#          cmd, size = struct.unpack_from('!HH', data)
+          cmd, size = self.parse.parseCommand(data)
+          self.recieve_size = size - self.parse.getCommandLength()
 #          print "Cmd, size = %d, %d" % ( cmd, size )
 
         if self.recieve_size > 0:
@@ -58,42 +61,29 @@ class SigServiceAdaptor(sig.SocketAdaptor):
 
     elif cmd == 0x0002 :
       print "push service..",data
-      self.owner.serviceList.append(data)
+      self.owner.pushService(data)
       pass
 
     elif cmd == 0x0003 :
       print "request to connect controller.."
-      parser = self.getParser()   
-      parser.setBuffer(data)
-      port, = parser.unmarshal('H')
-      name = data[parser.offset:].split(',')[0]
-      print "request to connect controller from %s:%d." % (name, port)
-      self.owner.controllers[name] = self.owner.connectToController(port, name)
+      self.owner.requestToConnect(data)
       pass
 
     elif cmd == 0x0004 :
       print "disconnect controller.."
-      msg = data.split(",")
-      ename = msg.pop(0)
-      self.owner.disconnectFromController(ename)
-      del self.owner.controllers[ename]
+      self.owner.requestToDisconnect(data)
       pass
 
     elif cmd == 0x0005 :
       print "Terminate Service.."
       self.terminate()
-      if  self.owner.autoExitProc :
-        self.owner.stopLoop()
-        sys.exit(0)
-      elif self.owner.autoExitLoop :
-        self.owner.stopLoop()
+      self.owner.terminateService()
       pass
 
     else:
       print "Invalid command..", cmd
       pass
     return 
-
 
 #
 #    SigClient <--- SigService
@@ -234,8 +224,10 @@ class SigService(sig.SigClient):
       self.ec = None
 
   def checkRecvData(self, timeout):
+    print "checkReccvData doesn't implement."
     return
 
+############################  Not implemented yet....
   def connectToViewer(self):
     return
 
@@ -257,6 +249,7 @@ class SigService(sig.SigClient):
 
     return None
 
+############################
   def getName(self):
     return self.name
 
@@ -274,7 +267,7 @@ class SigService(sig.SigClient):
     return self.entitiesName
 
   def getControllerSocket(self, name):
-    return None
+    return self.controllers[name].socket
 
   def getConnectedControllerNum(self):
     return len(self.controllers)
@@ -287,6 +280,37 @@ class SigService(sig.SigClient):
     self.autoExitProc = flag
     return 
 
+  def pushService(self, data):
+    self.serviceList.append(data)
+    return 
+
+  def requestToConnect(self, data):
+    parser = sig.SigSrvCommand(data)
+#    parser.setBuffer(data)
+    port, = parser.unmarshal('H')
+#    port, = struct.unpack_from('!H', data)
+    name = data[parser.offset:].split(',')[0]
+#    name = data[2:].split(',')[0]
+    print "request to connect controller from %s:%d." % (name, port)
+    self.controllers[name] = self.connectToController(port, name)
+    return 
+
+  def requestToDisconnect(self, data):
+    msg = data.split(",")
+    ename = msg.pop(0)
+    self.disconnectFromController(ename)
+    del self.controllers[ename]
+    return 
+
+  def terminateService(self):
+    if  self.autoExitProc :
+      self.stopLoop()
+      sys.exit(0)
+    elif self.autoExitLoop :
+      self.stopLoop()
+
+    return
+
   def onInit(self, evt):
     print "Call onInit"
     return
@@ -298,7 +322,9 @@ class SigService(sig.SigClient):
   def onAction(self, evt):
     print "Call onAction"
     return 1.0
-
+#
+#
+#
 class SigServiceEC(threading.Thread):
   def __init__(self, srv, intval=1.0):
     threading.Thread.__init__(self)

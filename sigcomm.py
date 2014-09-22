@@ -924,6 +924,12 @@ class SigSrvCommand(SigDataCommand):
     size = len(msgBuf) + struct.calcsize("HH")
     self.marshal('HHs', cmd, size, msgBuf)
 
+  def parseCommand(self, data):
+    self.setBuffer(data)
+    return self.unmarshal('HH')
+
+  def getCommandLength(self):
+    return struct.calcsize("HH")
 #
 # Events
 #
