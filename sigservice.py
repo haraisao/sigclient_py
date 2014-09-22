@@ -32,7 +32,7 @@ class SigServiceAdaptor(sig.SocketAdaptor):
 
           cmd, size = struct.unpack_from('!HH', data)
           self.recieve_size = size - 4
-          print "Cmd, size = %d, %d" % ( cmd, size )
+#          print "Cmd, size = %d, %d" % ( cmd, size )
 
         if self.recieve_size > 0:
           self.buffer += self.socket.recv(self.recieve_size - len(self.buffer))
@@ -47,10 +47,8 @@ class SigServiceAdaptor(sig.SocketAdaptor):
         self.terminate()
 
     print "Read thread terminated:",self.name
-
     return 
      
-
   def processCmd(self, cmd, data):
     if cmd == 0x0001 :
       thr = threading.Thread(target=sig.runOnRecvMsg, args=(self.owner, data))    
@@ -157,84 +155,6 @@ class SigService(sig.SigClient):
 
   def send(self, msg, flag=1):
     self.serverAdaptor.send(msg, self.name)
-
-  def recv(self, size, timeout=2.0):
-    return self.serverAdaptor.recv_data(size, timeout)
-
-  def processRequest(self, timeout=1.0):
-    socks = self.waitForRequestSocket(timeout)
-    for sock in socks:
-      print sock
-      self.recvRequestProc(sock)
-    
-  def recvRequestProc(self, sock=None):
-    if sock is None:
-      sock = self.serverAdaptor.socket
-
-    data = sock.recv(4)
-    if len(data) == 0:
-      return -1
-
-    parser = self.serverAdaptor.getParser()   
-    parser.printPacket(data)
-    parser.setBuffer(data)
-    cmd, size = parser.unmarshal('HH')
-    size -= 4
-    
-    print "Cmd, size = %d, %d" % ( cmd, size )
-    if size > 0:
-      data = sock.recv(size)
-      if len(data) != size:
-        return 0
-      else:
-        self.processCmd(cmd, data, sock) 
-        return 1
-
-    return -2
-
-  def processCmd(self, cmd, data, sock=None):
-    if cmd == 0x0001 :
-      print " call onRecvMsg()"
-      evt=sig.SigMsgEvent(data)
-      self.onRecvMsg(evt)
-      pass
-
-    elif cmd == 0x0002 :
-      print "push service..",data
-      self.serviceList.append(data)
-      pass
-
-    elif cmd == 0x0003 :
-      print "request to connect controller.."
-      parser = self.serverAdaptor.getParser()   
-      parser.setBuffer(data)
-      port, = parser.unmarshal('H')
-      name = data[parser.offset:].split(',')[0]
-      print "request to connect controller from %s:%d." % (name, port)
-      self.controllers[name] = self.connectToController(port, name)
-      pass
-
-    elif cmd == 0x0004 :
-      print "disconnect controller.."
-      msg = data.split(",")
-      ename = msg.pop(0)
-      self.disconnectFromController(ename)
-      del self.controllers[ename]
-      pass
-
-    elif cmd == 0x0005 :
-      print "Terminate Service.."
-      self.serverAdptor.terminate()
-      if  self.autoExitProc :
-        sys.exit(0)
-      elif self.autoExitLoop :
-        self.onLoop = False
-      pass
-
-    else:
-      print "Invalid command..", cmd
-      pass
-    return 
 
   def connectToController(self, port, name):
     adaptor = SigServiceAdaptor(self, self.srvReader, self.name+":"+name, self.server, port)
