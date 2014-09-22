@@ -1,3 +1,10 @@
+#
+#
+#
+import sys
+import os
+import struct
+import threading
 import sig
 
 #############################
@@ -5,8 +12,87 @@ import sig
 #  SigService
 
 class SigServiceAdaptor(sig.SocketAdaptor):
-  def __init__(self, reader, name, host, port):
+  def __init__(self, owner, reader, name, host, port):
     sig.SocketAdaptor.__init__(self, reader, name, host, port)
+    self.owner=owner
+    self.buffer=""
+    self.recieve_size = 0
+
+  def clear_buffer(self):
+    self.buffer = ""
+    self.recieve_size = 0
+
+  def message_reciever(self):
+    while self.mainloop:
+      try:
+        if self.recieve_size == 0 :
+          data = self.socket.recv(4)
+          if len(data) != 4:
+            self.terminate()
+
+          cmd, size = struct.unpack_from('!HH', data)
+          self.recieve_size = size - 4
+          print "Cmd, size = %d, %d" % ( cmd, size )
+
+        if self.recieve_size > 0:
+          self.buffer += self.socket.recv(self.recieve_size - len(self.buffer))
+
+          if len(self.buffer) != self.recieve_size:
+            pass
+          else:
+            self.processCmd(cmd, self.buffer) 
+            self.clear_buffer()
+      except:
+        print "Catch exception... :",self.name
+        self.terminate()
+
+    print "Read thread terminated:",self.name
+
+    return 
+     
+
+  def processCmd(self, cmd, data):
+    if cmd == 0x0001 :
+      thr = threading.Thread(target=sig.runOnRecvMsg, args=(self.owner, data))    
+      thr.start()
+      pass
+
+    elif cmd == 0x0002 :
+      print "push service..",data
+      self.owner.serviceList.append(data)
+      pass
+
+    elif cmd == 0x0003 :
+      print "request to connect controller.."
+      parser = self.getParser()   
+      parser.setBuffer(data)
+      port, = parser.unmarshal('H')
+      name = data[parser.offset:].split(',')[0]
+      print "request to connect controller from %s:%d." % (name, port)
+      self.owner.controllers[name] = self.owner.connectToController(port, name)
+      pass
+
+    elif cmd == 0x0004 :
+      print "disconnect controller.."
+      msg = data.split(",")
+      ename = msg.pop(0)
+      self.owner.disconnectFromController(ename)
+      del self.owner.controllers[ename]
+      pass
+
+    elif cmd == 0x0005 :
+      print "Terminate Service.."
+      self.terminate()
+      if  self.owner.autoExitProc :
+        sys.exit(0)
+      elif self.owner.autoExitLoop :
+        self.onLoop = False
+      pass
+
+    else:
+      print "Invalid command..", cmd
+      pass
+    return 
 
 
 #
@@ -88,7 +174,6 @@ class SigService(sig.SigClient):
     data = sock.recv(4)
     if len(data) == 0:
       return -1
-    print "Recieve"
 
     parser = self.serverAdaptor.getParser()   
     parser.printPacket(data)
@@ -152,8 +237,8 @@ class SigService(sig.SigClient):
     return 
 
   def connectToController(self, port, name):
-    adaptor = SigServiceAdaptor(self.srvReader, self.name+":"+name, self.server, port)
-    adaptor.connect(False)
+    adaptor = SigServiceAdaptor(self, self.srvReader, self.name+":"+name, self.server, port)
+    adaptor.connect()
     msg = '\x00\x01\x00\x04'
     adaptor.send(msg)
     return adaptor
@@ -162,7 +247,7 @@ class SigService(sig.SigClient):
     self.server = host 
     self.port = port 
     if self.serverAdaptor is None:
-      self.serverAdaptor = SigServiceAdaptor(self.srvReader,self.name+":srv", host, port)
+      self.serverAdaptor = SigServiceAdaptor(self, self.srvReader,self.name+":srv", host, port)
     res = self.serverAdaptor.connect(False)
 
     if res != 1:
@@ -176,6 +261,7 @@ class SigService(sig.SigClient):
       print "SigService: Fail to connect server [ %s:%d ]." % (host, port)
     
     if data == "SUCC" :
+      self.serverAdaptor.start()
       return True
     elif data == "FAIL" :
       print "SigService: Service name '%s' is already exist." % (host, port)
@@ -189,9 +275,15 @@ class SigService(sig.SigClient):
     return
 
   def disconnectFromController(self, entryName):
+    self.controllers[entryName].send("00004", self.name)
+    self.controllers[entryName].terminate()
+    del self.controllers[entryName]
     return
 
   def disconnectFromAllController(self):
+    names = self.controllers.keys()
+    for name in names:
+      self.disconnectFromController(name)
     return
 
   def disconnectFromViewer(self):
@@ -258,6 +350,7 @@ class SigService(sig.SigClient):
     return
 
   def onRecvMsg(self, evt):
+    print "onRecvMsg", evt.getMsg()
     return
 
   def onAction(self, evt):
