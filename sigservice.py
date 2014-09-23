@@ -216,11 +216,10 @@ class SigService(sig.SigClient):
     return
 
   def disconnectFromController(self, entryName):
-    cmdbuf = sigcomm.SigMarshaller()
+    cmdbuf = sigcomm.SigMarshaller("")
     cmdbuf.createCommand()
-    cmdbuf.marshal('H', 0x0004, 2)
-    msg = cmdbuf.getEncodedDataCommand()
-    self.controllers[entryName].send(msg)
+    cmdbuf.marshal('HH', 0x0004, 2)
+    self.controllers[entryName].send(cmdbuf.getEncodedDataCommand())
 
     self.controllers[entryName].terminate()
     del self.controllers[entryName]
@@ -233,6 +232,13 @@ class SigService(sig.SigClient):
     return
 
   def disconnectFromViewer(self):
+    if self.viewerAdaptor :
+      cmdbuf = sigcomm.SigMarshaller("")
+      cmdbuf.createCommand()
+      cmdbuf.marshal('HH', 0x0003, 0x0004)
+      self.viewerAdaptor.send(cmdbuf.getEncodedDataCommand())
+      self.viewerAdaptor.terminate()
+      self.viewerAdaptor = None
     return
 
   def startLoop(self, intval= -1.0):
@@ -251,10 +257,7 @@ class SigService(sig.SigClient):
     print "checkReccvData doesn't implement."
     return
 
-############################  Not implemented yet....
-  def connectToViewer(self):
-    host = "localhost"
-    port = 11000
+  def connectToViewer(self,host="localhost", port=11000):
     if self.viewerAdaptor is None:
       self.viewerAdaptor = SigServiceAdaptor(self, self.srvReader,self.name+":viewer", host, port)
     res = self.viewerAdaptor.connect(False)
@@ -273,7 +276,8 @@ class SigService(sig.SigClient):
   def captureView(self, entryName, camID=1, cType="RGB24", imgSize="320x240"):
     view = None
     if self.viewerAdaptor:
-      imgsize = 320 * 240 * 3
+      vinfo = sig.ViewImageInfo("WinBMP", cType, imgSize)
+      imgsize = vinfo.getImageSize() 
       msg="%s,%d,%d," % (entryName, camID, imgsize)
       cmdbuf=sigcomm.SigMarshaller("")
       cmdbuf.createMsgCommand(0x0001, msg)
@@ -289,7 +293,6 @@ class SigService(sig.SigClient):
         print "Error in captureView: doesn't have such camera [%s:%d]" % (entryName, camID)
       else:
         imgdata=self.viewerAdaptor.recv(imgsize)
-        vinfo = sig.ViewImageInfo("WinBMP", cType, imgSize)
 	view = sig.ViewImage(imgdata, vinfo)
         view.setFOVy(fov)
         view.setAspectRatio(ar)
@@ -299,21 +302,66 @@ class SigService(sig.SigClient):
     return view
 
   def distanceSensor(self, entryName, offset=0.0, range=255.0, camID=1):
-    return None
+    res = 255
+    if self.viewerAdaptor:
+      msg="%s,%d," % (entryName, camID)
+      cmdbuf=sigcomm.SigMarshaller("")
+      cmdbuf.createMsgCommand(0x0002, msg)
+      self.viewerAdaptor.send(cmdbuf.getEncodedDataCommand())
+      buf = self.viewerAdaptor.recv(cmdbuf.calcsize("H")+1)
+      cmdbuf.setBuffer(buf)
+      result, = cmdbuf.unmarshal('H')
+      if result == 2:
+        print "distanceSensor : cannet find entity"
+      elif result == 3:
+        print "distanceSensor : %s doesn't have camera [id:%d]" % (entryName, camID)
+      else:
+        res = ord(buf[2])
+    else:
+      print "distanceSensor : Service is not connected to viewer"
+    return res
 
   def distanceSensor1D(self, entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x1"):
-
-    return None
+    if self.viewerAdaptor:
+      return self.getDistanceImage(entryName, offset. range, camID, 1, cType, imgSize)
+    else:
+      print "distanceSensor : Service is not connected to viewer"
+      return 255
 
   def distanceSensor2D(self, entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x240"):
+    if self.viewerAdaptor:
+      return self.getDistanceImage(entryName, offset. range, camID, 2, cType, imgSize)
+    else:
+      print "distanceSensor : Service is not connected to viewer"
+      return 255
 
-    return None
+  def getDepthImage(self, entryName, offset=0.0, range=255.0, camID=1, dimension=2, cType="GREY8", imgSize="320x240"):
+    res = None
+    if self.viewerAdaptor:
+      vinfo = sig.ViewImageInfo("WinBMP", cType, imgSize)
+      imgsize = vinfo.getImageSize() 
+      msg="%s,%d,%d,%d" % (entryName, dimension, camID, imgsize)
+      cmdbuf=sigcomm.SigMarshaller("")
+      cmdbuf.createMsgCommand(0x0004, msg, ('d', offset), ('d', range))
+      self.viewerAdaptor.send(cmdbuf.getEncodedDataCommand())
 
-  def getDepthImage(self, entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x240"):
+      hbuf = self.viewerAdaptor.recv(cmdbuf.calcsize("Hdd"))
+      cmdbuf.setBuffer(hbuf)
+      result, fov, ar = cmdbuf.unmarshal('Hdd')
+      if result == 2:
+        print "distanceSensor%dD : cannet find entity"  % dimension
+      elif result == 3:
+        print "distanceSensor&dD : %s doesn't have camera [id:%d]" % (dimension, entryName, camID)
+      else:
+        imgdata=self.viewerAdaptor.recv(imgsize)
+	res = sig.ViewImage(imgdata, vinfo)
+        res.setFOVy(fov)
+        res.setAspectRatio(ar)
+    else:
+      print "distanceSensor%dD : Service is not connected to viewer" % dimension
 
-    return None
+    return res
 
-############################
   def getName(self):
     return self.name
 

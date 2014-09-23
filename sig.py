@@ -985,3 +985,9 @@ class ViewImageInfo:
       print "ERROR: Invalid color type"
       return 0
 
+  def getImageSize(self):
+    size = self.size()
+    if size : 
+      return size[0] * size[1] * self.getByteParOnePixel()
+    else:
+      return 0
