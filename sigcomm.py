@@ -838,6 +838,15 @@ class SigMarshaller:
     else:
       self.marshal('HHs', cmd, size, msgBuf)
 
+  def calcsize(self, fmt):
+    res = 0
+    for x in fmt:
+      if x in ('i', 'h', 'I', 'H', 'd', 'B'):
+        res += struct.calcsize(x)
+      else:
+        print "Unsupported format:",x
+    return res
+
 #
 #  marshalling command 
 #     SigMarshaller <--- SigDataCommand
@@ -918,7 +927,7 @@ class SigSrvCommand(SigDataCommand):
   def __init__(self, buffer=''):
     SigDataCommand.__init__(self, buffer)
 
-  def createMsgCommand(self,  sender, cmd, msg):
+  def createMsgCommand(self, sender, cmd, msg):
     msgBuf="%s,%d,%s" % (sender, len(msg), msg)
     self.createCommand()
     size = len(msgBuf) + struct.calcsize("HH")

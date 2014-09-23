@@ -25,6 +25,25 @@ class SigServiceAdaptor(sigcomm.SocketAdaptor):
     self.buffer = ""
     self.recieve_size = 0
 
+  def recv(self,size):
+    self.clear_buffer()
+    ssize = size
+    while ssize > 0:
+      ssize = size - len(self.buffer)
+      data = self.recieve_data(ssize)
+
+      if data == -1:
+        print "Error in SigServiceAdaptor.recv", ssize
+        return None
+      elif data is None:
+        pass
+      else:
+        self.buffer += data
+	if len(self.buffer) >= size :
+          break
+    print "RECV:",len(self.buffer)
+    return self.buffer
+
   def message_reciever(self):
     while self.mainloop:
       try:
@@ -34,9 +53,9 @@ class SigServiceAdaptor(sigcomm.SocketAdaptor):
             self.terminate()
 
 #          cmd, size = struct.unpack_from('!HH', data)
-          cmd, size = self.parse.parseCommand(data)
-          self.recieve_size = size - self.parse.getCommandLength()
-#          print "Cmd, size = %d, %d" % ( cmd, size )
+          cmd, size = self.parser.parseCommand(data)
+          self.recieve_size = size - self.parser.getCommandLength()
+          print "Cmd, size = %d, %d" % ( cmd, size )
 
         if self.recieve_size > 0:
           self.buffer += self.socket.recv(self.recieve_size - len(self.buffer))
@@ -197,7 +216,12 @@ class SigService(sig.SigClient):
     return
 
   def disconnectFromController(self, entryName):
-    self.controllers[entryName].send("00004", self.name)
+    cmdbuf = sigcomm.SigMarshaller()
+    cmdbuf.createCommand()
+    cmdbuf.marshal('H', 0x0004, 2)
+    msg = cmdbuf.getEncodedDataCommand()
+    self.controllers[entryName].send(msg)
+
     self.controllers[entryName].terminate()
     del self.controllers[entryName]
     return
@@ -229,10 +253,50 @@ class SigService(sig.SigClient):
 
 ############################  Not implemented yet....
   def connectToViewer(self):
+    host = "localhost"
+    port = 11000
+    if self.viewerAdaptor is None:
+      self.viewerAdaptor = SigServiceAdaptor(self, self.srvReader,self.name+":viewer", host, port)
+    res = self.viewerAdaptor.connect(False)
+
+    if res != 1:
+      print "SigService: Fail to connect viewer [ %s:%d ]." % (host, port)
+      self.viewerAdaptor = None
+      return False
+
+    cmdbuf = sigcomm.SigMarshaller("")
+    cmdbuf.createMsgCommand(0x0000, self.name)
+    msg = cmdbuf.getEncodedDataCommand()
+    self.viewerAdaptor.send(msg)
     return
 
   def captureView(self, entryName, camID=1, cType="RGB24", imgSize="320x240"):
-    return None
+    view = None
+    if self.viewerAdaptor:
+      imgsize = 320 * 240 * 3
+      msg="%s,%d,%d," % (entryName, camID, imgsize)
+      cmdbuf=sigcomm.SigMarshaller("")
+      cmdbuf.createMsgCommand(0x0001, msg)
+      self.viewerAdaptor.send(cmdbuf.getEncodedDataCommand())
+
+      headerBuf = self.viewerAdaptor.recv(cmdbuf.calcsize("Hdd"))
+      cmdbuf.setBuffer(headerBuf)
+      res, fov, ar = cmdbuf.unmarshal('Hdd')
+
+      if res == 2:
+        print "Error in captureView: cannot find entry",entryName
+      elif res == 3:
+        print "Error in captureView: doesn't have such camera [%s:%d]" % (entryName, camID)
+      else:
+        imgdata=self.viewerAdaptor.recv(imgsize)
+        vinfo = sig.ViewImageInfo("WinBMP", cType, imgSize)
+	view = sig.ViewImage(imgdata, vinfo)
+        view.setFOVy(fov)
+        view.setAspectRatio(ar)
+    else:
+      print "Error in captureView: Service isn't connected to viewer"
+
+    return view
 
   def distanceSensor(self, entryName, offset=0.0, range=255.0, camID=1):
     return None
