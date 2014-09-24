@@ -62,7 +62,9 @@ class SigObjPart(sigcomm.SigMarshaller):
     self.pos=[0,0,0]
     self.quaternion=[0,0,0,0]
     self.partsValue=None
-  
+
+  #
+  #
   #
   def controller(self):
     return self.owner.controller
@@ -96,13 +98,24 @@ class SigObjPart(sigcomm.SigMarshaller):
       else:
         self.type = 'PARTS_TYPE_UNKNOWN'
         self.partsValue = None
+
+  #
+  #
+  #
+  def giveSize(self) :
+    return self.partsValue
+
   #
   #  Position
   #
   def setPos(self, x, y, z):
     self.pos=[x,y,z]
+    return
 
   def getPos(self):
+    return self.pos
+
+  def givePosision(self) :
     return self.pos
 
   def pos_val(self, idx, val=None):
@@ -127,6 +140,7 @@ class SigObjPart(sigcomm.SigMarshaller):
   #
   def setQuaternion(self, qw, qx, qy, qz):
     self.quaternion=[qw, qx, qy, qz]
+    return
 
   def getQuaternion(self):
     return self.quaternion
@@ -155,7 +169,7 @@ class SigObjPart(sigcomm.SigMarshaller):
     msg = "%s,%s,%s," % (self.owner.getName(), self.name, objname)
     controller = self.controller()
     marshaller = self.controller().getMarshaller()
-    marshaller.createMsgCommand(sigcomm.cmdDataType['REQUEST_GRASP_OBJECT'], msg)
+    marshaller.createMsgCommand('REQUEST_GRASP_OBJECT', msg)
     controller.sendData(marshaller.getEncodedDataCommand())
 
 
@@ -163,7 +177,7 @@ class SigObjPart(sigcomm.SigMarshaller):
     msg = "%s,%s," % (self.owner.getName(), self.name)
     controller = self.controller()
     marshaller = self.controller().getMarshaller()
-    marshaller.createMsgCommand(sigcomm.cmdDataType['REQUEST_RELEASE_OBJECT'], msg)
+    marshaller.createMsgCommand('REQUEST_RELEASE_OBJECT', msg)
     controller.sendData(marshaller.getEncodedDataCommand(), 0)
 
 #
@@ -183,7 +197,7 @@ class SigSimObj:
   # Attach SimObj 
   # 
   def getObj(self):
-    self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_GET_ENTITY'], name=self.name)
+    self.cmdbuf.setHeader('COMM_REQUEST_GET_ENTITY', name=self.name)
     self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
 
   #
@@ -262,14 +276,14 @@ class SigSimObj:
   def setPosition(self, x, y, z):
     self.parts['body'].setPos(x, y, z)
     name = self.name+','
-    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_SET_ENTITY_POSITION'], name,
+    self.cmdbuf.createMsgCommand('REQUEST_SET_ENTITY_POSITION', name,
                                  ('d', x), ('d', y), ('d', z))
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
 
   def updatePosition(self):
     name = self.name+','
-    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_GET_ENTITY_POSITION'], name)
+    self.cmdbuf.createMsgCommand('REQUEST_GET_ENTITY_POSITION', name)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
     return
 
@@ -297,7 +311,7 @@ class SigSimObj:
   def setRotation(self, qw, qx, qy, qz, abs=1):
     self.parts['body'].setQuaternion(qw, qx, qy, qz)
     name = self.name+','
-    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_SET_ENTITY_ROTATION'], name,
+    self.cmdbuf.createMsgCommand('REQUEST_SET_ENTITY_ROTATION', name,
                                  ('H', abs), ('d', qw), ('d', qx), ('d', qy), ('d', qz))
 
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
@@ -310,7 +324,7 @@ class SigSimObj:
 
   def updateRotation(self):
     name = self.name+','
-    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_GET_ENTITY_ROTATION'], name)
+    self.cmdbuf.createMsgCommand('REQUEST_GET_ENTITY_ROTATION', name)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
     return
 
@@ -340,7 +354,7 @@ class SigSimObj:
 
   def addForce(self, dfx, dfy, dfz):
     self.cmdbuf.createCommand()
-    self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_ADD_FORCE'], name=self.name)
+    self.cmdbuf.setHeader('COMM_REQUEST_ADD_FORCE', name=self.name)
     self.cmdbuf.marshal('dddB', dfx, dfy, dfz, 0)
     self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
      
@@ -373,7 +387,7 @@ class SigSimObj:
   #  
   def setJointAngle(self, joint_name, angle):
     self.cmdbuf.createCommand()
-    self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_SET_JOINT_ANGLE'], name=self.name)
+    self.cmdbuf.setHeader('COMM_REQUEST_SET_JOINT_ANGLE', name=self.name)
     self.cmdbuf.marshal('SdB', joint_name, angle, 0)
     self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
     return 
@@ -385,7 +399,7 @@ class SigSimObj:
     else:
       msg += '0,'
 
-    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_SET_JOINT_QUATERNION'], msg,
+    self.cmdbuf.createMsgCommand('REQUEST_SET_JOINT_QUATERNION', msg,
                                  ('d', qw), ('d', qx), ('d', qy), ('d', qz))
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
@@ -393,7 +407,7 @@ class SigSimObj:
   def addJointTorque(self, joint_name, torque):
     if self.dynamics() :
       self.cmdbuf.createCommand()
-      self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_ADD_JOINT_TORQUE'], name=self.name)
+      self.cmdbuf.setHeader('COMM_REQUEST_ADD_JOINT_TORQUE', name=self.name)
       self.cmdbuf.marshal('Sd', joint_name, torque)
       self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
     else:
@@ -406,17 +420,23 @@ class SigSimObj:
 
   def setAngularVelocityToJoint(self, joint_name, vel, mx):
     msg = "%s,%s," % (self.name, joint_name)
-    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_SET_JOINT_VELOCITY'], msg,
-                                 ('d', vel), ('d', mx))
+    self.cmdbuf.createMsgCommand('REQUEST_SET_JOINT_VELOCITY', msg, ('d', vel), ('d', mx))
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return
 
+  def setAngularVelocityToParts(self, name, vel, maxf) :
+    self.cmdbuf.createCommand()
+    self.cmdbuf.setHeader('COMM_REQUEST_SET_ANGULAR_VELOCITY_PARTS', name=self.name)
+    self.cmdbuf.marshal('Sdd', name, vel, maxf)
+    self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
+
+    return 
   #
   #
   #
   def getAllJointAngles(self):
     msg = "%s," % (self.name)
-    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_GET_ALL_JOINT_ANGLES'], msg)
+    self.cmdbuf.createMsgCommand('REQUEST_GET_ALL_JOINT_ANGLES', msg)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
 
     self.controller.waitForReply()
@@ -426,12 +446,180 @@ class SigSimObj:
   #
   # Wheel...
   #
-  def setWheelProperty(self, lname, lconsumtion, lmax, lunit, lnose, lres, lmaxf, 
-                             rname, rconsumtion, rmax, runit, rnose, rres, rmaxf) :
+  def setWheelProperty(self, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                             rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+
+    self.setSimObjWheelProperty(self.name, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                             rname, rconsumption, rmax, runit, rnoise, rres, rmaxf)
+
     return
 
+  def setSimObjWheelProperty(self, objname, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                             rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+
+    my = self.getObj(objname)
+    dyn_ctrl = DynamicsConttoller()
+    self.dynamicsData[objname] = dyn_ctrl
+    dyn_ctrl.setWheelProperty(my.getName, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                             rname, rconsumption, rmax, runit, rnoise, rres, rmaxf)
+    return 
+
   def differentialWheelSetSpeed(self, lvel, rvel):
+    self.differentialSimObjWheelSetSpeed(self.name, lvel, rvel)
     return
+
+  def differentialSimObjWheelSetSpeed(self, name, lvel, rvel):
+    my = self.getObj(name)
+    dyn_ctrl = self.dynamicsData[name]
+    dyn_ctrl.differentialWheelSetSpeed(name, lvel, rvel)
+    return
+#
+#
+#
+class DynamicsConttoller:
+  def __init__(self):
+    self.leftWheelName          = None
+    self.leftMotorConsumption   = 0.0
+    self.leftWheelRadius        = 0.0
+    self.leftWheelMaxSpeed      = 0.0
+    self.leftWheelSpeedUnit     = 0.0
+    self.leftSlipNoise          = 0.0
+    self.leftEncoderNoise       = 0.0
+    self.leftEncoderResolution  = 0.0
+    self.leftMaxForce           = 0.0
+    self.rightWheelName         = None
+    self.rightMotorConsumption  = 0.0
+    self.rightWheelRadius       = 0.0
+    self.rightWheelMaxSpeed     = 0.0
+    self.rightWheelSpeedUnit    = 0.0
+    self.rightSlipNoise         = 0.0
+    self.rightEncoderNoise      = 0.0
+    self.rightEncoderResolution = 0.0
+    self.rightMaxForce          = 0.0
+    self.axleLength             = 0.0
+
+    self.currentLeftWheelSpeed  = 0.0
+    self.currentRightWheelSpeed = 0.0
+
+    self.Accueacy  = 0.00000001
+    return
+
+  def setWheelProperty(self, objname, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                             rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+    self.leftWheelName          = lname
+    self.leftMotorConsumption   = lconsumption
+    self.leftWheelMaxSpeed      = lmax
+    self.leftWheelSpeedUnit     = lunit
+    self.leftSlipNoise          = lnoise
+    self.leftEncoderResolution  = lres
+    self.leftMaxForce           = lmaxf
+    self.rightWheelName         = rname
+    self.rightMotorConsumption  = rconsumption
+    self.rightWheelMaxSpeed     = rmax
+    self.rightWheelSpeedUnit    = runit
+    self.rightSlipNoise         = rnoise
+    self.rightEncoderResolution = rres
+    self.rightMaxForce          = rmaxf
+
+    if lname and rname:
+      pLeft = objname.getParts(lname)
+      lx, ly, lz = pLeft.givePosition()
+      pRight = objname.getParts(rname)
+      rx, ry, rz = pRight.givePosition()
+
+      self.axleLength = math.sqrt((rx * rx) + (ry * ry) + (rz * rz))
+
+    self.getLeftWheelRadius(objname)
+    return
+  #
+  #
+  #
+  def differentialWheelSetSpeed(self, obj, left, right):
+    if self.leftWheelMaxSpeed < left :
+      left = self.leftWheelMaxSpeed
+    elif left < -self.leftWheelMaxSpeed :
+      left = -self.leftWheelMaxSpeed
+
+    if self.leftWheelSpeedUnit > self.Accueacy :
+      radiuse = math.fmod(math.fabs(left), self.leftWheelSpeedUnit)
+      if  left > 0:
+        left -= radiuse
+      else:
+        left += radiuse
+      
+    if self.rightWheelMaxSpeed < left :
+      left = self.rightWheelMaxSpeed
+    elif left < -self.rightWheelMaxSpeed :
+      left = -self.rightWheelMaxSpeed
+
+    if self.rightWheelSpeedUnit > self.Accueacy :
+      radiuse = math.fmod(math.fabs(left), self.rightWheelSpeedUnit)
+      if  right > 0:
+        right -= radiuse
+      else:
+        right += radiuse
+      
+   
+    if  self.leftWheelName:
+      obj.setAngularVelocityToParts(self.leftWheelName, left, self.leftMaxForce)
+      self.currentLeftWheelSpeed = left
+
+    if  self.rightWheelName:
+      obj.setAngularVelocityToParts(self.rightWheelName, right, self.rightMaxForce)
+      self.currentRightWheelSpeed = right
+
+    return 
+
+  def getAxleLength(self):
+    return self.axleLength
+
+  #
+  #
+  #
+  def getLeftWheelRaius(self, obj):
+    radius = 0.0
+    part = obj.getParts(self.leftWheelName)
+    if part.type == 'PARTS_TYPE_CYLINDER' :
+      radius, length =part.giveSize()
+    else:
+      pass
+
+    self.leftWheelRadius = radius
+    return 0.0
+
+  #
+  #
+  #
+  def getRightWheelRaius(self, obj):
+    radius = 0.0
+    part = obj.getParts(self.rightWheelName)
+    if part.type == 'PARTS_TYPE_CYLINDER' :
+      radius, length =part.giveSize()
+    else:
+      pass
+
+    self.rightWheelRadius = radius
+
+    return 0.0
+
+  def getLeftEncoderNoise(self):
+    return self.leftEncoderNoise
+
+  def getRightEncoderNoise(self):
+    return self.rightEncoderNoise
+
+  def getLeftSlipNoise(self):
+    return self.leftSlipNoise
+
+  def getRightSlipNoise(self):
+    return self.rightSlipNoise
+
+  def getCurrentLeftWheelSpeed(self):
+    return self.currentLeftWheelSpeed
+
+  def getCurrentRightWheelSpeed(self):
+    return self.currentRightWheelSpeed
+
 #
 #
 #

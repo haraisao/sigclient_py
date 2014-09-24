@@ -144,7 +144,7 @@ class SigService(sig.SigClient):
     return res
     
   #
-  #
+  #  Send massage to other service
   #
   def sendMsg(self, to_name, msg, distance=-1.0):
     if type(to_name) == types.StringType:
@@ -162,6 +162,9 @@ class SigService(sig.SigClient):
     self.send(msgBuf)
     return
 
+  #
+  #  Send message to a controller directly
+  #
   def sendMsgToCtrl(self, to_name, msg):
     if to_name in self.controllers.keys():
       adaptor = self.controllers[to_name]
@@ -174,16 +177,25 @@ class SigService(sig.SigClient):
       pass
     return False
 
+  #
+  #  raw level send
+  #
   def send(self, msg, flag=1):
     self.serverAdaptor.send(msg, self.name)
 
+  #
+  #  Connect to a controller
+  #
   def connectToController(self, port, name):
     adaptor = SigServiceAdaptor(self, self.srvReader, self.name+":"+name, self.server, port)
     adaptor.connect()
     msg = '\x00\x01\x00\x04'
     adaptor.send(msg)
     return adaptor
-    
+  
+  #
+  #  Connect to the server
+  # 
   def connect(self, host, port):
     self.server = host 
     self.port = port 
@@ -211,10 +223,15 @@ class SigService(sig.SigClient):
 
     return False
 
+  #
+  #  Disconnect from the server
+  #
   def disconnect(self):
     self.send("00004")
     return
-
+  #
+  # Disconnect from a named controller
+  #
   def disconnectFromController(self, entryName):
     cmdbuf = sigcomm.SigMarshaller("")
     cmdbuf.createCommand()
@@ -225,12 +242,18 @@ class SigService(sig.SigClient):
     del self.controllers[entryName]
     return
 
+  #
+  # Disconnect from all controllers 
+  #
   def disconnectFromAllController(self):
     names = self.controllers.keys()
     for name in names:
       self.disconnectFromController(name)
     return
 
+  #
+  # Disconnect from the SigViewer
+  #
   def disconnectFromViewer(self):
     if self.viewerAdaptor :
       cmdbuf = sigcomm.SigMarshaller("")
@@ -241,6 +264,9 @@ class SigService(sig.SigClient):
       self.viewerAdaptor = None
     return
 
+  #
+  #  Start an execution context
+  #
   def startLoop(self, intval= -1.0):
     if self.ec is None:
       self.ec = self.ecClass(self)
@@ -248,15 +274,26 @@ class SigService(sig.SigClient):
       self.ec.start()
     return
 
+  #
+  #  Stop the execution context
+  #
   def stopLoop(self):
     if self.ec :
       self.ec.stop()
       self.ec = None
 
+  #
+  #  In original SigService library, this function works for recieve data
+  #      from server, viewer or other services.
+  #  In this libraray, this funtion doesn't need...
+  #
   def checkRecvData(self, timeout):
     print "checkReccvData doesn't implement."
     return
 
+  #
+  #  Connect to a SigViewer
+  #
   def connectToViewer(self,host="localhost", port=11000):
     if self.viewerAdaptor is None:
       self.viewerAdaptor = SigServiceAdaptor(self, self.srvReader,self.name+":viewer", host, port)
@@ -273,6 +310,17 @@ class SigService(sig.SigClient):
     self.viewerAdaptor.send(msg)
     return
 
+  #
+  #  get connected a SigViewer or not
+  #
+  def getIsConnectedView(self):
+    if self.viewrAdaptor :
+      return True
+    return False
+
+  #
+  #  Get a camera image 
+  #
   def captureView(self, entryName, camID=1, cType="RGB24", imgSize="320x240"):
     view = None
     if self.viewerAdaptor:
@@ -301,6 +349,9 @@ class SigService(sig.SigClient):
 
     return view
 
+  #
+  #
+  # 
   def distanceSensor(self, entryName, offset=0.0, range=255.0, camID=1):
     res = 255
     if self.viewerAdaptor:
@@ -321,21 +372,35 @@ class SigService(sig.SigClient):
       print "distanceSensor : Service is not connected to viewer"
     return res
 
-  def distanceSensor1D(self, entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x1"):
+  #
+  #
+  # 
+  def distanceSensor1D(self, entryName, offset=0.0, range=255.0,
+                         camID=1, cType="GREY8", imgSize="320x1"):
     if self.viewerAdaptor:
-      return self.getDistanceImage(entryName, offset. range, camID, 1, cType, imgSize)
+      return self.getDistanceImage(entryName, offset. range,
+                                         camID, 1, cType, imgSize)
     else:
       print "distanceSensor : Service is not connected to viewer"
       return 255
 
-  def distanceSensor2D(self, entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x240"):
+  #
+  #
+  # 
+  def distanceSensor2D(self, entryName, offset=0.0, range=255.0,
+                           camID=1, cType="GREY8", imgSize="320x240"):
     if self.viewerAdaptor:
-      return self.getDistanceImage(entryName, offset. range, camID, 2, cType, imgSize)
+      return self.getDistanceImage(entryName, offset. range,
+                                        camID, 2, cType, imgSize)
     else:
       print "distanceSensor : Service is not connected to viewer"
       return 255
 
-  def getDepthImage(self, entryName, offset=0.0, range=255.0, camID=1, dimension=2, cType="GREY8", imgSize="320x240"):
+  #
+  #
+  # 
+  def getDepthImage(self, entryName, offset=0.0, range=255.0,
+                        camID=1, dimension=2, cType="GREY8", imgSize="320x240"):
     res = None
     if self.viewerAdaptor:
       vinfo = sig.ViewImageInfo("WinBMP", cType, imgSize)
@@ -362,51 +427,84 @@ class SigService(sig.SigClient):
 
     return res
 
+  #
+  # Get own service name
+  # 
   def getName(self):
     return self.name
 
+  #
+  # Set own service name
+  # 
   def setName(self, name):
     self.name = name
     return 
 
+  #
+  # Get a number of connected services
+  # 
   def getNewServiceNum(self):
     return len(self.serviceList)
 
+  #
+  #  Get list of connected service names
+  # 
   def getAllOtherSerives(self):
     return self.serviceList
 
+  #
+  #  Get list of connected entity names
+  # 
   def getAllConnectedEntitiesName(self):
     return self.entitiesName
 
+  #
+  #
+  # 
   def getControllerSocket(self, name):
     return self.controllers[name].socket
 
+  #
+  #
+  # 
   def getConnectedControllerNum(self):
     return len(self.controllers)
 
+  #
+  #
+  # 
   def setAutoExitLoop(self, flag):
     self.autoExitLoop = flag
     return 
 
+  #
+  #
+  # 
   def setAutoExitProc(self, flag):
     self.autoExitProc = flag
     return 
 
+  #
+  #
+  # 
   def pushService(self, data):
     self.serviceList.append(data)
     return 
 
+  #
+  #
+  # 
   def requestToConnect(self, data):
     parser = sig.SigSrvCommand(data)
-#    parser.setBuffer(data)
     port, = parser.unmarshal('H')
-#    port, = struct.unpack_from('!H', data)
     name = data[parser.offset:].split(',')[0]
-#    name = data[2:].split(',')[0]
     print "request to connect controller from %s:%d." % (name, port)
     self.controllers[name] = self.connectToController(port, name)
     return 
 
+  #
+  #
+  # 
   def requestToDisconnect(self, data):
     msg = data.split(",")
     ename = msg.pop(0)
@@ -414,28 +512,40 @@ class SigService(sig.SigClient):
     del self.controllers[ename]
     return 
 
+  #
+  #
+  # 
   def terminateService(self):
     if  self.autoExitProc :
       self.stopLoop()
       sys.exit(0)
     elif self.autoExitLoop :
       self.stopLoop()
-
     return
 
+  #
+  #  The function called at starting the execution context 
+  # 
   def onInit(self, evt):
     print "Call onInit"
     return
 
+  #
+  #  The function called at recieving the messages
+  # 
   def onRecvMsg(self, evt):
     print "onRecvMsg", evt.getMsg()
     return
 
+  #
+  #  The function called periodically in the execution context
+  # 
   def onAction(self, evt):
     print "Call onAction"
     return 1.0
+
 #
-#
+#  Ececution context for SigService
 #
 class SigServiceEC(threading.Thread):
   def __init__(self, srv, intval=1.0):
@@ -444,12 +554,18 @@ class SigServiceEC(threading.Thread):
     self.mainloop = True
     self.interval = intval
 
+  #
+  #
+  #
   def run(self):
     self.service.onInit(None)
     while self.mainloop:
       intval = self.service.onAction(None)
       time.sleep(intval)
 
+  #
+  #
+  #
   def stop(self):
     self.mainloop = False
     print "SigServiceEC stopped"

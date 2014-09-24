@@ -825,6 +825,8 @@ class SigMarshaller:
     return 
 
   def createMsgCommand(self, cmd, msgBuf, *opt):
+    if type(cmd).__name__ == 'str' :
+      cmd = cmdDataType[cmd]
     self.createCommand()
     size = len(msgBuf) + struct.calcsize("HH")
     if len(opt) > 0:
@@ -879,10 +881,12 @@ class SigDataCommand(SigMarshaller):
       print "Error in parseCommand"
       return False
    
-  def setHeader(self, type, n=1, seq=0, flag=0, to='', radius=-1.0,name=None):
+  def setHeader(self, typ=0, n=1, seq=0, flag=0, to='', radius=-1.0,name=None):
+    if type(typ).__name__ == 'str' :
+      typ = cmdDataType[typ]
     if self.encbuf : del self.encbuf
     self.createCommand()
-    self.marshalUShort(type)
+    self.marshalUShort(typ)
     self.marshalUShort(n)
     self.marshalUShort(seq)
     self.marshalUShort(flag)

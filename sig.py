@@ -105,6 +105,13 @@ class SigDataReader(sigcomm.SigCommReader):
         self.setObjRotation(self.buffer)
         len=self.parser.offset
 
+      elif cmd == sigcomm.cmdDataType['REQUEST_CHECK_SERVICE']:
+        self.parser.setBuffer(self.buffer)
+        result,data = self.parser.unmarshal('HH')
+        print "Res",result
+        self.owner.chkServiceFlag = result
+        len=self.parser.offset
+
       elif cmd == sigcomm.cmdDataType['REQUEST_SET_ENTITY_ROTATION']:
         pass
 
@@ -190,11 +197,21 @@ class SigDataReader(sigcomm.SigCommReader):
   #
   # Camera...
   #
-  def getCamFOV(self):
-    return 
+  def getCamFOV(self, camID=1):
+    res = 0.0
+    name = "FOV%d" % camID
+    if name in self.attributs.keys() :
+      red = self.attributes[name].value
 
-  def getCamAs(self):
-    return 
+    return res
+
+  def getCamAS(self, camID=1):
+    res = 0.0
+    name = "aspectRatio%d" % camID
+    if name in self.attributs.keys() :
+      red = self.attributes[name].value
+
+    return res
   #
   #  for synchronization
   #
@@ -471,6 +488,7 @@ class SigController(SigClient):
     self.request_obj=False
     self.setEC(ecclass)
     self.mutex=threading.Lock()
+    self.chkServiceFlag = 0
 
   #
   #
@@ -503,10 +521,10 @@ class SigController(SigClient):
   #  send initial message to simserver
   #
   def sendInit(self):
-    self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_ATTACH_CONTROLLER'], name=self.name)
+    self.cmdbuf.setHeader('COMM_REQUEST_ATTACH_CONTROLLER', name=self.name)
     self.sendCmd(self.cmdbuf.getEncodedCommand())
 
-    self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT'], name=self.name)
+    self.cmdbuf.setHeader('COMM_REQUEST_CONNECT_DATA_PORT', name=self.name)
     self.sendData(self.cmdbuf.getEncodedCommand())
  
   #
@@ -515,6 +533,14 @@ class SigController(SigClient):
   def checkRequest(self):
     with self.mutex:
       return self.request_obj
+
+  def waitForReply(self, timeout=10.0):
+    st=time.time()
+    while self.checkRequest() :
+      if  time.time() - st > timeout :
+        return -1
+    return 1
+    
 
   def setRequest(self, val):
     with self.mutex:
@@ -532,8 +558,7 @@ class SigController(SigClient):
       self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_GET_ENTITY'], name=name)
       self.sendCmd(self.cmdbuf.getEncodedCommand())
       if waitFlag :
-        while self.checkRequest() :
-          pass
+        self.waitForReply(10.0)
         return self.objs[name]
   #
   #  create SimObj, called by the cmdHandler
@@ -607,14 +632,19 @@ class SigController(SigClient):
     return
 
   def sendMessageAction(self, msgBuf):
-    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_SENDMSG_FROM_CONTROLLER'], msgBuf)
+    self.cmdbuf.createMsgCommand('REQUEST_SENDMSG_FROM_CONTROLLER', msgBuf)
     self.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return
   #
   #  for Service
   #
-  def checkSerice(self, name):
-    return False
+  def checkService(self, name):
+    msgBuf = "%s,"  % name
+    self.cmdbuf.createMsgCommand('REQUEST_CHECK_SERVICE', msgBuf)
+    self.sendData(self.cmdbuf.getEncodedDataCommand())
+    if self.waitForReply(10.0) < 0 :
+      self.chkServiceFlag = 0
+    return self.chkServiceFlag
 
   def connectToService(self, name):
     try:
@@ -638,7 +668,7 @@ class SigController(SigClient):
       ##### Request to Connect #####################
       msgBuf = "%s,%s,"  % (name,self.name) 
 
-      self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_CONNECT_SERVICE'], msgBuf, ('H', newport))
+      self.cmdbuf.createMsgCommand('REQUEST_CONNECT_SERVICE', msgBuf, ('H', newport))
       self.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
 
       ##############################################
