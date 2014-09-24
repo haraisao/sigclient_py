@@ -136,6 +136,72 @@ Methods
 
 * onCollision(evt):
 
+
+------------------------------------------------------------
+sig.SigSimObj
+-------------------
+Descriptions
+^^^^^^^^^^^^^^
+
+
+Supers
+^^^^^^^
+   None
+
+Variables
+^^^^^^^^^^
+    cmdbuf = sigcomm.SigDataCommand()
+    name=name
+    parts = {}
+    attributes = {}
+    joints={}
+    updateTime=0.0
+    controller = ctrl
+
+Methods
+^^^^^^^^
+  def __init__(self, name, ctrl):
+  def getObj(self):
+  def setAttributes(self, data):
+  def getName(self):
+  def setParts(self, data):
+  def getParts(self, name):
+  def dynamics(self):
+  def getPosition(self):
+  def setCurrentPosition(self, x, y, z):
+  def setPosition(self, x, y, z):
+  def updatePosition(self):
+  def setCurrentRotation(self, qw, qx, qy, qz):
+  def x(self, val=None):
+  def y(self, val=None):
+  def z(self, val=None):
+  def getRotation(self):
+  def setRotation(self, qw, qx, qy, qz, abs=1):
+  def setAxisAndAngle(self, x, y, z, ang):
+  def updateRotation(self):
+  def qw(self, val=None):
+  def qx(self, val=None):
+  def qy(self, val=None):
+  def qz(self, val=None):
+  def setForce(self, fx, fy, fz):
+  def addForce(self, dfx, dfy, dfz):
+  def getMass(self):
+  def setMass(self, val):
+  def setAccel(self, ax, ay, az):
+  def setTorque(self, x, y, z):
+  def setJointAngle(self, joint_name, angle):
+  def setJointQuaternion(self, joint_name, qw, qx, qy, qz, offset=0):
+  def addJointTorque(self, joint_name, torque):
+  def setJointVelocity(self, joint_name, vel, mx):
+  def setAngularVelocityToJoint(self, joint_name, vel, mx):
+  def setAngularVelocityToParts(self, name, vel, maxf) :
+  def getAllJointAngles(self):
+  def setWheelProperty(self, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                             rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+  def setSimObjWheelProperty(self, objname, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                             rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+
+
 ------------------------------------------------------------
 sig.SigServiceBase
 -------------------
