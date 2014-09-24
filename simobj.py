@@ -32,17 +32,17 @@ class SigObjAttribute(sigcomm.SigMarshaller):
   def parse(self):
     datalen,self.name, self.group, vallen, self.valueType = self.unmarshal('HSSHH')
 
-    if self.valueType == typeValue['VALUE_TYPE_BOOL']:
+    if self.valueType == sigcomm.typeValue['VALUE_TYPE_BOOL']:
       self.valueType = 'VALUE_TYPE_BOOL'
       value, = self.unmarshal('H')
       if value : self.value=True
       else : self.value=False
 
-    elif self.valueType == typeValue['VALUE_TYPE_DOUBLE']:
+    elif self.valueType == sigcomm.typeValue['VALUE_TYPE_DOUBLE']:
       self.valueType = 'VALUE_TYPE_DOUBLE'
       self.value, = self.unmarshal('d')
 
-    elif self.valueType == typeValue['VALUE_TYPE_STRING']:
+    elif self.valueType == sigcomm.typeValue['VALUE_TYPE_STRING']:
       self.valueType = 'VALUE_TYPE_STRING'
       self.value = self.unmarshal('H')
     else:
@@ -81,15 +81,15 @@ class SigObjPart(sigcomm.SigMarshaller):
 
       extlen, = self.unmarshal('H')
 
-      if type == partType['PARTS_TYPE_BOX'] :
+      if type == sigcomm.partType['PARTS_TYPE_BOX'] :
         self.type = 'PARTS_TYPE_BOX'
         self.partsValue = self.unmarshal('ddd')
 
-      elif type == partType['PARTS_TYPE_CYLINDER'] :
+      elif type == sigcomm.partType['PARTS_TYPE_CYLINDER'] :
         self.type = 'PARTS_TYPE_CYLINDER'
         self.partsValue = self.unmarshal('dd')
 
-      elif type == partType['PARTS_TYPE_SPHERE'] :
+      elif type == sigcomm.partType['PARTS_TYPE_SPHERE'] :
         self.type = 'PARTS_TYPE_SPHERE'
         self.partsValue = self.unmarshal('d')
 
@@ -155,7 +155,7 @@ class SigObjPart(sigcomm.SigMarshaller):
     msg = "%s,%s,%s," % (self.owner.getName(), self.name, objname)
     controller = self.controller()
     marshaller = self.controller().getMarshaller()
-    marshaller.createMsgCommand(cmdDataType['REQUEST_GRASP_OBJECT'], msg)
+    marshaller.createMsgCommand(sigcomm.cmdDataType['REQUEST_GRASP_OBJECT'], msg)
     controller.sendData(marshaller.getEncodedDataCommand())
 
 
@@ -163,7 +163,7 @@ class SigObjPart(sigcomm.SigMarshaller):
     msg = "%s,%s," % (self.owner.getName(), self.name)
     controller = self.controller()
     marshaller = self.controller().getMarshaller()
-    marshaller.createMsgCommand(cmdDataType['REQUEST_RELEASE_OBJECT'], msg)
+    marshaller.createMsgCommand(sigcomm.cmdDataType['REQUEST_RELEASE_OBJECT'], msg)
     controller.sendData(marshaller.getEncodedDataCommand(), 0)
 
 #
@@ -183,7 +183,7 @@ class SigSimObj:
   # Attach SimObj 
   # 
   def getObj(self):
-    self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_GET_ENTITY'], name=self.name)
+    self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_GET_ENTITY'], name=self.name)
     self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
 
   #
@@ -262,14 +262,14 @@ class SigSimObj:
   def setPosition(self, x, y, z):
     self.parts['body'].setPos(x, y, z)
     name = self.name+','
-    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_SET_ENTITY_POSITION'], name,
+    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_SET_ENTITY_POSITION'], name,
                                  ('d', x), ('d', y), ('d', z))
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
 
   def updatePosition(self):
     name = self.name+','
-    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_GET_ENTITY_POSITION'], name)
+    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_GET_ENTITY_POSITION'], name)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
     return
 
@@ -297,7 +297,7 @@ class SigSimObj:
   def setRotation(self, qw, qx, qy, qz, abs=1):
     self.parts['body'].setQuaternion(qw, qx, qy, qz)
     name = self.name+','
-    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_SET_ENTITY_ROTATION'], name,
+    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_SET_ENTITY_ROTATION'], name,
                                  ('H', abs), ('d', qw), ('d', qx), ('d', qy), ('d', qz))
 
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
@@ -310,7 +310,7 @@ class SigSimObj:
 
   def updateRotation(self):
     name = self.name+','
-    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_GET_ENTITY_ROTATION'], name)
+    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_GET_ENTITY_ROTATION'], name)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
     return
 
@@ -330,20 +330,41 @@ class SigSimObj:
   #  Force/Accel/Torque
   #
   def setForce(self, fx, fy, fz):
+    if self.dynamics() :
+      self.attributes['fx'].value=fx
+      self.attributes['fy'].value=fy
+      self.attributes['fz'].value=fz
+    else:
+      print "setForce : dynamics is off..."
     return 
 
   def addForce(self, dfx, dfy, dfz):
     self.cmdbuf.createCommand()
-    self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_ADD_FORCE'], name=self.name)
+    self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_ADD_FORCE'], name=self.name)
     self.cmdbuf.marshal('dddB', dfx, dfy, dfz, 0)
     self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
      
     return 
 
+  def getMass(self):
+    return self.attributes['mass'].value
+
+  def setMass(self, val):
+    self.attributes['mass'].value = val
+    return
+
   def setAccel(self, ax, ay, az):
+    mass = getMass()
+    setForce(mass * ax, mass * ay, mass * az)
     return 
 
   def setTorque(self, x, y, z):
+    if self.dynamics() :
+      self.attributes['tqx'].value=x
+      self.attributes['tqy'].value=y
+      self.attributes['tqz'].value=z
+    else:
+      print "setTorque : dynamics is off..."
     return 
 
   #
@@ -352,7 +373,7 @@ class SigSimObj:
   #  
   def setJointAngle(self, joint_name, angle):
     self.cmdbuf.createCommand()
-    self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_SET_JOINT_ANGLE'], name=self.name)
+    self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_SET_JOINT_ANGLE'], name=self.name)
     self.cmdbuf.marshal('SdB', joint_name, angle, 0)
     self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
     return 
@@ -364,7 +385,7 @@ class SigSimObj:
     else:
       msg += '0,'
 
-    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_SET_JOINT_QUATERNION'], msg,
+    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_SET_JOINT_QUATERNION'], msg,
                                  ('d', qw), ('d', qx), ('d', qy), ('d', qz))
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
@@ -372,7 +393,7 @@ class SigSimObj:
   def addJointTorque(self, joint_name, torque):
     if self.dynamics() :
       self.cmdbuf.createCommand()
-      self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_ADD_JOINT_TORQUE'], name=self.name)
+      self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_ADD_JOINT_TORQUE'], name=self.name)
       self.cmdbuf.marshal('Sd', joint_name, torque)
       self.controller.sendCmd(self.cmdbuf.getEncodedCommand())
     else:
@@ -385,7 +406,7 @@ class SigSimObj:
 
   def setAngularVelocityToJoint(self, joint_name, vel, mx):
     msg = "%s,%s," % (self.name, joint_name)
-    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_SET_JOINT_VELOCITY'], msg,
+    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_SET_JOINT_VELOCITY'], msg,
                                  ('d', vel), ('d', mx))
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return
@@ -395,7 +416,7 @@ class SigSimObj:
   #
   def getAllJointAngles(self):
     msg = "%s," % (self.name)
-    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_GET_ALL_JOINT_ANGLES'], msg)
+    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_GET_ALL_JOINT_ANGLES'], msg)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
 
     self.controller.waitForReply()

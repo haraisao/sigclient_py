@@ -9,6 +9,7 @@ import sys
 import os
 import time
 import types
+import threading
 #from sigcomm import *
 import sigcomm
 #from simobj import *
@@ -93,21 +94,21 @@ class SigDataReader(sigcomm.SigCommReader):
     try:
       cmd = self.command.pop(0)
 
-      if cmd == cmdDataType['REQUEST_GET_ENTITY_POSITION']:
+      if cmd == sigcomm.cmdDataType['REQUEST_GET_ENTITY_POSITION']:
         self.setObjPosition(self.buffer)
         len=self.parser.offset
 
-      elif cmd == cmdDataType['REQUEST_SET_ENTITY_POSITION']:
+      elif cmd == sigcomm.cmdDataType['REQUEST_SET_ENTITY_POSITION']:
         pass
 
-      elif cmd == cmdDataType['REQUEST_GET_ENTITY_ROTATION']:
+      elif cmd == sigcomm.cmdDataType['REQUEST_GET_ENTITY_ROTATION']:
         self.setObjRotation(self.buffer)
         len=self.parser.offset
 
-      elif cmd == cmdDataType['REQUEST_SET_ENTITY_ROTATION']:
+      elif cmd == sigcomm.cmdDataType['REQUEST_SET_ENTITY_ROTATION']:
         pass
 
-      elif cmd == cmdDataType['REQUEST_GRASP_OBJECT']:
+      elif cmd == sigcomm.cmdDataType['REQUEST_GRASP_OBJECT']:
         self.parser.setBuffer(self.buffer)
         result, = self.parser.unmarshal('H')
         len=self.parser.offset
@@ -126,7 +127,7 @@ class SigDataReader(sigcomm.SigCommReader):
         else:
           print "Unknown ERROR in graspObj"
 
-      elif cmd == cmdDataType['REQUEST_GET_ALL_JOINT_ANGLES']:
+      elif cmd == sigcomm.cmdDataType['REQUEST_GET_ALL_JOINT_ANGLES']:
         self.parser.setBuffer(self.buffer)
         recvSize, jointSize = self.parser.unmarshal('HH')
         recvSize -= struct.calcsize('HH')
@@ -143,7 +144,7 @@ class SigDataReader(sigcomm.SigCommReader):
             ang = msg_ar[i*2+1]
             obj.joints[jname] = float(ang)
 
-      elif cmd == "cmd:%d" % cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT']:
+      elif cmd == "cmd:%d" % sigcomm.cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT']:
         print "[INFO] Connect DataPort"
         pass
 
@@ -292,16 +293,16 @@ class SigCmdHandler:
     self.command.setBuffer(cmd)
     self.command.getHeader()
 
-    if self.command.type == cmdDataType['COMM_RESULT_GET_ENTITY'] :
+    if self.command.type == sigcomm.cmdDataType['COMM_RESULT_GET_ENTITY'] :
       print "[INFO] Call createSimObj"
       self.comm.createSimObj(cmd)
       pass
 
-    elif self.command.type == cmdDataType['COMM_RESULT_ATTACH_CONTROLLER'] :
+    elif self.command.type == sigcomm.cmdDataType['COMM_RESULT_ATTACH_CONTROLLER'] :
       print "[INFO] Controller Attached"
       pass
 
-    elif self.command.type == cmdDataType['COMM_INVOKE_CONTROLLER_ON_COLLISION'] :
+    elif self.command.type == sigcomm.cmdDataType['COMM_INVOKE_CONTROLLER_ON_COLLISION'] :
       self.comm.invokeOnCollision(self.command.getRemains())
       pass
 
@@ -351,11 +352,11 @@ class SigMessageHandler:
   # called by SigCmdReader
   #
   def invoke(self, msg):
-    if msg[0] == cmdType['START_SIM']:
+    if msg[0] == sigcomm.cmdType['START_SIM']:
       self.startSim(msg)
-    elif msg[0] == cmdType['STOP_SIM']:
+    elif msg[0] == sigcomm.cmdType['STOP_SIM']:
       self.stopSim(msg)
-    elif msg[0] == cmdType['SEND_MESSAGE']:
+    elif msg[0] == sigcomm.cmdType['SEND_MESSAGE']:
       self.sendMsg(msg)
     else:
 #      self.reader.printPacket(cmd)
@@ -502,10 +503,10 @@ class SigController(SigClient):
   #  send initial message to simserver
   #
   def sendInit(self):
-    self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_ATTACH_CONTROLLER'], name=self.name)
+    self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_ATTACH_CONTROLLER'], name=self.name)
     self.sendCmd(self.cmdbuf.getEncodedCommand())
 
-    self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT'], name=self.name)
+    self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT'], name=self.name)
     self.sendData(self.cmdbuf.getEncodedCommand())
  
   #
@@ -528,7 +529,7 @@ class SigController(SigClient):
       return self.objs[name]
     except:
       self.setRequest(True)
-      self.cmdbuf.setHeader(cmdDataType['COMM_REQUEST_GET_ENTITY'], name=name)
+      self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_GET_ENTITY'], name=name)
       self.sendCmd(self.cmdbuf.getEncodedCommand())
       if waitFlag :
         while self.checkRequest() :
@@ -541,7 +542,7 @@ class SigController(SigClient):
     self.cmdbuf.setBuffer(data)
     self.cmdbuf.getHeader()
     result, = self.cmdbuf.unmarshal('H')
-    if result != cmdType['COMM_RESULT_OK'] :
+    if result != sigcomm.cmdType['COMM_RESULT_OK'] :
       self.setRequest(False)
       return False
 
@@ -606,7 +607,7 @@ class SigController(SigClient):
     return
 
   def sendMessageAction(self, msgBuf):
-    self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_SENDMSG_FROM_CONTROLLER'], msgBuf)
+    self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_SENDMSG_FROM_CONTROLLER'], msgBuf)
     self.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return
   #
@@ -637,7 +638,7 @@ class SigController(SigClient):
       ##### Request to Connect #####################
       msgBuf = "%s,%s,"  % (name,self.name) 
 
-      self.cmdbuf.createMsgCommand(cmdDataType['REQUEST_CONNECT_SERVICE'], msgBuf, ('H', newport))
+      self.cmdbuf.createMsgCommand(sigcomm.cmdDataType['REQUEST_CONNECT_SERVICE'], msgBuf, ('H', newport))
       self.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
 
       ##############################################
