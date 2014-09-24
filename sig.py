@@ -541,7 +541,6 @@ class SigController(SigClient):
         return -1
     return 1
     
-
   def setRequest(self, val):
     with self.mutex:
       self.request_obj = val
