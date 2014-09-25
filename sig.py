@@ -155,7 +155,7 @@ class SigDataReader(sigcomm.SigCommReader):
     elif cmd == sigcomm.cmdDataType['REQUEST_GET_SIMULATION_TIME']:
       self.parser.setBuffer(self.buffer)
       simTime, = self.parser.unmarshal('d')
-      print "SIMULATION_TIME = %f" % simTime
+#      print "SIMULATION_TIME = %f" % simTime
       self.owner.simulationTime = simTime
       pass
 
@@ -819,11 +819,19 @@ class SigController(SigClient):
     return self.simstate
 
   def worldQuickStep(self, stepsize):
-    print "Not implemented worldQuickStep"
-    return None
+    cmdbuf = self.cmdAdaptor.getParser()
+    cmdbuf.createCommand()
+    cmdbuf.marshal('HHd',sigcomm.cmdDataType['REQUEST_WORLD_QUICK_STEP'],
+                  cmdbuf.calcsize('HHd'), stepsize )
+    self.sendData( cmdbuf.getEncodedDataCommand(), 0)
+    return 
 
   def worldStep(self, stepsize):
-    print "Not implemented worldStep"
+    cmdbuf = self.cmdAdaptor.getParser()
+    cmdbuf.createCommand()
+    cmdbuf.marshal('HHd',sigcomm.cmdDataType['REQUEST_WORLD_STEP'],
+                  cmdbuf.calcsize('HHd'), stepsize )
+    self.sendData( cmdbuf.getEncodedDataCommand(), 0)
     return None
 
   #

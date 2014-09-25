@@ -90,6 +90,10 @@ Variables
     ecClass = sigcomm.SigControllerEC
     mutex=threading.Lock()
     chkServiceFlag = 0
+    dynamicsData = {}
+    simstate = False
+    attached = False
+    simulationTime = 0.0
 
 
 Methods
@@ -250,6 +254,11 @@ server
 * isProcessing():
   return False
 
+* worldQuickStep(stepsize)
+  if autostep mode is OFF, progress a simulation time in stepsize.
+
+* worldStep(stepsize)
+  if autostep mode is OFF, progress a simulation time in stepsize.
 
 ==== Not Implemenetd...
 
@@ -265,8 +274,6 @@ server
 * getRobotObj(name)
 * getText()
 * sendSound(time, to, sound) 
-* worldQuickStep(stepsize)
-* worldStep(stepsize)
 
 
 ------------------------------------------------------------
