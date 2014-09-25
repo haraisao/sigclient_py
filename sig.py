@@ -484,6 +484,8 @@ class SigController(SigClient):
     self.mutex=threading.Lock()
     self.chkServiceFlag = 0
     self.dynamicsData = {}
+    self.simstate = False
+    self.attached = False
 
   #
   #
@@ -582,6 +584,7 @@ class SigController(SigClient):
       obj.updateTime = m_time
 
       attached,opts,offset1,offset2 = self.cmdbuf.unmarshal('HIHH')
+      self.attached = attached
 
       obj.setAttributes(data[offset1+off:offset2+off])
       obj.setParts(data[offset2+off:])
@@ -740,6 +743,72 @@ class SigController(SigClient):
     dyn_ctrl.differentialWheelsSetSpeed(my, lvel, rvel)
     return
 
+  def getAllEntitirs(self):
+    obj = getObj()
+    return obj.getAllEntities()
+
+  def getAxleLength(self, name=None):
+    if name is None:
+      name=self.name
+    return self.dynamicsData[name].getAxleLength()
+
+  def getLastService(self):
+    return self.services[self.ervices.keys().pop()]
+
+  def getLeftEncoderNoise(self, name=None):
+    if name is None:
+      name=self.name
+    return self.dynamicsData[name].getLeftEncoderNoise()
+
+  def getLeftWheelRadius(self, name=None):
+    if name is None:
+      name=self.name
+    return self.dynamicsData[name].getLeftWheelRadius()
+
+  def getRightEncoderNoise(self, name=None):
+    if name is None:
+      name=self.name
+    return self.dynamicsData[name].getRightEncoderNoise()
+
+  def getRightWheelRadius(self, name=None):
+    if name is None:
+      name=self.name
+    return self.dynamicsData[name].getRightWheelRadius()
+
+  def getRobotObj(self):
+    print "Not implemented getRobotObj"
+    return None
+
+  def getSimState(self):
+    return self.simstate
+
+  def getSimulationTime(self):
+    return None
+
+  def getText(self):
+    print "Not implemented getText"
+    return None
+
+  def isAttached(self):
+    return self.attached
+
+  def isProcessing(self):
+    return False
+
+  def sendSound(self, tm, to, snd):
+    print "Not implemented sendSound"
+    return None
+
+  def setSimState(self, st):
+    self.simstate = st
+    return self.simstate
+
+  def worldQuickStep(self, stepsize):
+    return None
+
+  def worldStep(self, stepsize):
+    return None
+
   #
   #
   #
@@ -756,11 +825,13 @@ class SigController(SigClient):
   def start(self):
     self.ec = self.ecClass(self)
     self.startTime=time.time()
+    self.setSimState(True)
     self.ec.start()
 
   def stop(self):
     if self.ec :
       self.ec.stop()
+      self.setSimState(False)
       self.ec = None
   #
   #  Virtual Functions
