@@ -25,13 +25,13 @@ class DumbelController(sig.SigController):
     self.time += 1
  
     if self.state == 'STATE_INIT' :
-      self.my.setWheelProperty("LINK_LWHEEL", 0.0, 1000.0, 0.0001, 0.0, 0.0, 100.0,
+      self.setWheelProperty("LINK_LWHEEL", 0.0, 1000.0, 0.0001, 0.0, 0.0, 100.0,
                             "LINK_RWHEEL", 0.0, 1000.0, 0.0001, 0.0, 0.0, 100.0)
 
       self.state = 'STATE_STEP1'
 
     elif self.state == 'STATE_STEP1' :
-      self.my.differentialWheelsSetSpeed(5.0,5.0)
+      self.differentialWheelsSetSpeed(5.0,5.0)
       self.state = 'STATE_STEP2'
 
     elif self.state == 'STATE_STEP2' :
@@ -39,7 +39,7 @@ class DumbelController(sig.SigController):
         self.state = 'STATE_STEP3'
 
     elif self.state == 'STATE_STEP3' :
-      self.my.differentialWheelsSetSpeed(-5.0,-5.0)
+      self.differentialWheelsSetSpeed(-5.0,-5.0)
       self.state = 'STATE_STEP4'
 
     elif self.state == 'STATE_STEP4' :

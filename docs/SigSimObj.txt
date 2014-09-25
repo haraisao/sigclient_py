@@ -95,9 +95,3 @@ Methods
 
 * getAllJointAngles(self):
 
-* setWheelProperty(self, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
-                        rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
-
-* setSimObjWheelProperty(self, objname, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
-                        rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
-

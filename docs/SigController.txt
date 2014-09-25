@@ -68,6 +68,12 @@ Methods
 
 * connectToService( name):
 
+* setWheelProperty(self, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                        rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+
+* setSimObjWheelProperty(self, obj, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                        rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+
 * setStartTime( tm):
 
 * getCurrentTime():
@@ -83,4 +89,67 @@ Methods
 * onRecvMsg(evt):
 
 * onCollision(evt):
+
+
+------------------------------------------------------------
+sig.DynamicsController
+-------------------
+Descriptions
+^^^^^^^^^^^^^^
+
+Supers
+^^^^^^^
+   None
+
+Variables
+^^^^^^^^^^
+    leftWheelName          = None
+    leftMotorConsumption   = 0.0
+    leftWheelRadius        = 0.0
+    leftWheelMaxSpeed      = 0.0
+    leftWheelSpeedUnit     = 0.0
+    leftSlipNoise          = 0.0
+    leftEncoderNoise       = 0.0
+    leftEncoderResolution  = 0.0
+    leftMaxForce           = 0.0
+    rightWheelName         = None
+    rightMotorConsumption  = 0.0
+    rightWheelRadius       = 0.0
+    rightWheelMaxSpeed     = 0.0
+    rightWheelSpeedUnit    = 0.0
+    rightSlipNoise         = 0.0
+    rightEncoderNoise      = 0.0
+    rightEncoderResolution = 0.0
+    rightMaxForce          = 0.0
+    axleLength             = 0.0
+
+    currentLeftWheelSpeed  = 0.0
+    currentRightWheelSpeed = 0.0
+
+    Accueacy  = 0.00000001
+
+Methods
+^^^^^^^^^^
+* setWheelProperty(self, obj, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                          rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+
+* differentialWheelsSetSpeed(self, obj, left, right):
+
+* getAxleLength(self):
+
+* getLeftWheelRadius(self, obj):
+
+* getRightWheelRadius(self, obj):
+
+* getLeftEncoderNoise(self):
+
+* getRightEncoderNoise(self):
+
+* getLeftSlipNoise(self):
+
+* getRightSlipNoise(self):
+
+* getCurrentLeftWheelSpeed(self):
+
+* getCurrentRightWheelSpeed(self):
 
