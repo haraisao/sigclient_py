@@ -5,6 +5,7 @@ import sys
 import os
 #import struct
 import time
+import types
 import threading
 import sigcomm
 import sig
@@ -55,7 +56,7 @@ class SigServiceAdaptor(sigcomm.SocketAdaptor):
 #          cmd, size = struct.unpack_from('!HH', data)
           cmd, size = self.parser.parseCommand(data)
           self.recieve_size = size - self.parser.getCommandLength()
-          print "Cmd, size = %d, %d" % ( cmd, size )
+#          print "Cmd, size = %d, %d" % ( cmd, size )
 
         if self.recieve_size > 0:
           self.buffer += self.socket.recv(self.recieve_size - len(self.buffer))
@@ -495,7 +496,7 @@ class SigService(sig.SigClient):
   #
   # 
   def requestToConnect(self, data):
-    parser = sig.SigSrvCommand(data)
+    parser = sigcomm.SigSrvCommand(data)
     port, = parser.unmarshal('H')
     name = data[parser.offset:].split(',')[0]
     print "request to connect controller from %s:%d." % (name, port)
