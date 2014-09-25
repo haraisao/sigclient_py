@@ -214,32 +214,57 @@ server
 * onCollision(evt):
   virtual funtion : this method called when it occurs the collision with other objects 
 
-==== Not Implemenetd...
 * getAllEntities()
-* getAxleLength()
-* getAxleLength(name)
+  return a list of names which can be seen by the mounted camera
+
+* getAxleLength(name=None)
+  return axleLenghth
+
 * getLastService()
-* getLeftEncoderNoise():
-* getLeftWheelRadius( obj):
-* getRightEncoderNoise():
-* getRightWheelRadius( obj):
+  return sevice adaptor which resistered last
+
+* getLeftEncoderNoise(name=None):
+  get encoder noise of the left wheel
+
+* getLeftWheelRadius(name=None):
+  get radius of the left wheel
+
+* getRightEncoderNoise(name=None):
+  get encoder noise of the right wheel
+
+* getRightWheelRadius(name=None):
+  get radius of the right wheel
+
+* getSimState():
+  return self.simstate
+
+* setSimState(val):
+  set  self.simstate = val
+
+* getSimulationTime():
+  get current simulation time
+
+* isAttached():
+  return self.attached
+
+* isProcessing():
+  return False
+
+
+==== Not Implemenetd...
 
 * getDataSock() ---> need?
 * getSrvSock() ---> need?
 * getSrvSocks() ---> need?
 * getRand()
-* getRobotObj(name)
-* getSimState()
-* getSimulationTime() ----> getCurrentTime() ?
-* getText()
 * init() ----> sendInit() ?
-* isAttached()
-* isProcessing()
 * loopMain() ---> start()
 * onPostEvent() 
 * onPreEvent() 
+
+* getRobotObj(name)
+* getText()
 * sendSound(time, to, sound) 
-* setSimState()
 * worldQuickStep(stepsize)
 * worldStep(stepsize)
 

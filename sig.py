@@ -152,6 +152,13 @@ class SigDataReader(sigcomm.SigCommReader):
           ang = msg_ar[i*2+1]
           obj.joints[jname] = float(ang)
 
+    elif cmd == sigcomm.cmdDataType['REQUEST_GET_SIMULATION_TIME']:
+      self.parser.setBuffer(self.buffer)
+      simTime, = self.parser.unmarshal('d')
+      print "SIMULATION_TIME = %f" % simTime
+      self.owner.simulationTime = simTime
+      pass
+
     elif cmd == "cmd:%d" % sigcomm.cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT']:
       print "[INFO] Connect DataPort"
       pass
@@ -486,6 +493,7 @@ class SigController(SigClient):
     self.dynamicsData = {}
     self.simstate = False
     self.attached = False
+    self.simulationTime = 0.0
 
   #
   #
@@ -783,7 +791,14 @@ class SigController(SigClient):
     return self.simstate
 
   def getSimulationTime(self):
-    return None
+    cmdbuf = self.cmdAdaptor.getParser()
+    cmdbuf.createCommand()
+    cmdbuf.marshal('HHd',sigcomm.cmdDataType['REQUEST_GET_SIMULATION_TIME'],
+                  cmdbuf.calcsize('HHd'), 0.0 )
+    self.sendData( cmdbuf.getEncodedDataCommand() )
+    self.waitForReply()
+
+    return  self.simulationTime
 
   def getText(self):
     print "Not implemented getText"
@@ -804,9 +819,11 @@ class SigController(SigClient):
     return self.simstate
 
   def worldQuickStep(self, stepsize):
+    print "Not implemented worldQuickStep"
     return None
 
   def worldStep(self, stepsize):
+    print "Not implemented worldStep"
     return None
 
   #
