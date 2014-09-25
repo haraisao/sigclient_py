@@ -23,75 +23,138 @@ Variables
 
 Methods
 ^^^^^^^^
-* __init__(self, name, ctrl):
+* __init__( name, ctrl):
 
-* getObj(self):
+* getObj():
 
-* setAttributes(self, data):
+* setAttributes( data):
 
-* getName(self):
+* getName():
 
-* setParts(self, data):
+* setParts( data):
 
-* getParts(self, name):
+* getParts( name):
 
-* dynamics(self):
+* dynamics():
 
-* getPosition(self):
+* getPosition():
 
-* setCurrentPosition(self, x, y, z):
+* setCurrentPosition( x, y, z):
 
-* setPosition(self, x, y, z):
+* setPosition( x, y, z):
 
-* updatePosition(self):
+* updatePosition():
 
-* setCurrentRotation(self, qw, qx, qy, qz):
+* setCurrentRotation( qw, qx, qy, qz):
 
-* x(self, val=None):
+* x(val=None):
 
-* y(self, val=None):
+* y(val=None):
 
-* z(self, val=None):
+* z(val=None):
 
-* getRotation(self):
+* getRotation():
 
-* setRotation(self, qw, qx, qy, qz, abs=1):
+* setRotation(qw, qx, qy, qz, abs=1):
 
-* setAxisAndAngle(self, x, y, z, ang):
+* setAxisAndAngle(x, y, z, ang, direct=1):
 
-* updateRotation(self):
+* updateRotation():
 
-* qw(self, val=None):
+* qw(val=None):
 
-* qx(self, val=None):
+* qx(val=None):
 
-* qy(self, val=None):
+* qy(val=None):
 
-* qz(self, val=None):
+* qz(val=None):
 
-* setForce(self, fx, fy, fz):
+* setForce(fx, fy, fz):
 
-* addForce(self, dfx, dfy, dfz):
+* addForce(dfx, dfy, dfz):
+   add force parameter
 
-* getMass(self):
+* getMass():
 
-* setMass(self, val):
+* setMass(val):
 
-* setAccel(self, ax, ay, az):
+* setAccel(ax, ay, az):
 
-* setTorque(self, x, y, z):
+* setTorque(x, y, z):
 
-* setJointAngle(self, joint_name, angle):
+* setJointAngle(joint_name, angle):
 
-* setJointQuaternion(self, joint_name, qw, qx, qy, qz, offset=0):
+* setJointQuaternion(joint_name, qw, qx, qy, qz, offset=0):
 
-* addJointTorque(self, joint_name, torque):
+* addJointTorque(joint_name, torque):
 
-* setJointVelocity(self, joint_name, vel, mx):
+* setJointVelocity(joint_name, vel, mx):
 
-* setAngularVelocityToJoint(self, joint_name, vel, mx):
+* setAngularVelocityToJoint(joint_name, vel, mx):
 
-* setAngularVelocityToParts(self, name, vel, maxf) :
+* setAngularVelocityToParts( name, vel, maxf) :
 
-* getAllJointAngles(self):
+* getAllJointAngles():
 
+* getCamFOV(camID=1):
+
+* getCamAS(camID=1):
+
+============================= Not Implemented....
+* addForceAtPos(fx, fy, fz, px, py, pz)
+* addForceAtRelPos(fx, fy, fz, px, py, pz)
+* addForceToParts(parts, fx, fy, fz)
+* addRealForce( fx, fy, fz)
+* addRealForceAtPos(fx, fy, fz, px, py, pz)
+* addRealForceAtRelPos(fx, fy, fz, px, py, pz)
+* attrs() 
+* checkAttrs()
+* classname()
+* copy(const SimObj &o)
+* free_()
+* getAngularVelocity(Vector3d &vec)
+* getAttr(const char *name) const 
+* getCamDir(Vector3d &v, int camID=1, bool requestToServer=true)
+* getCameraIDs()
+* getCameraLinkName(int camID=1)
+* getCameraNum()
+* getCameraViewPoint(Vector3d &v, int camID=1)
+* getCameraViewVector(Vector3d &v, int camID=1)
+* getCamLink(int camID=1)
+* getCamPos(Vector3d &pos, int camID=1, bool requestToServer=true)
+* getCamQuaternion(double &qw, double &qx, double &qy, double &qz, int camID=1)
+* getDynamicsMode()
+* getFile(int num)
+* getGravityMode()
+* getIsGrasped()
+* getJointAngle(const char *jointName)
+* getJointForce(const char *jointName, JointForce &jf1, JointForce &jf2)
+* getJointPosition(Vector3d &pos, const char *jointName)
+* getMainParts()
+* getPartsIterator()
+* getPartsPosition(Vector3d &pos, const char *partsName)
+* getPointedObject(const char *speakerName, int lrFlag, int lineID, int typicalType=1)
+* getPointingVector(Vector3d &vec, const char *joint1, const char *joint2) 
+* getPointingVector(Vector3d &vec, int lrFlag=0)
+* getVelocity(Vector3d &vec)
+* id() const 
+* isAttached() const 
+* isAttr(const char *name)
+* name() const 
+* push(Attribute *attr)
+* push(CParts *p)
+* setAngularVelocity(double x, double y, double z)
+* setAttrValue(const char *name, const char *v)
+* setAttrValue(const char *name, const Value &v)
+* setCamAS(double as, int camID=1)
+* setCamDir(Vector3d v, int camID=1)
+* setCameraViewPoint(Vector3d v, int camID=1)
+* setCameraViewVector(Vector3d v, int camID=1)
+* setCamFOV(double fov, int camID=1)
+* setCamPos(Vector3d pos, int camID=1)
+* setCollisionEnable(bool flag)
+* setDynamicsMode(bool dynamics)
+* setGravityMode(bool gravity)
+* setRequestSener(RequestSender *s)
+* setVelocity(double vx, double vy, double vz)
+* toBinary(int &n)

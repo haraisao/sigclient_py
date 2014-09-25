@@ -1,6 +1,74 @@
 API List
 ===========
 
+sig.SigClient
+-------------------
+Descriptions
+^^^^^^^^^^^^^^
+
+Supers
+^^^^^^^
+   None
+
+Variables
+^^^^^^^^^^^^
+    name = myname
+    cmdAdaptor = None
+    dataAdaptor = None
+    cmdReader = SigCmdReader(self)
+    dataReader = SigDataReader(self)
+    srvReader = SigServiceReader(self)
+    services = {}
+    wait_for_reply = False
+    self.server = host
+    self.port = port
+
+
+Methods
+^^^^^^^^
+* __init__( myname, host="localhost", port=9000):
+  Contructor....
+
+* setServer( host, port):
+  set hostname and port number of the server of SIGVerse
+
+* connect():
+  connect to server
+
+* sendCmd(msg):
+  send msg via self.cmdAdaptor
+
+* getAllSockets():
+  get all socket descriptor, but may not use at all
+
+* waitForRequestSocket( timeout=0.1 ):
+  wait until comming data or timed out 
+  This method is same as the 'select' system call.
+
+* setWaitForReply():
+  set a waiting flag(self.wait_for_reply) to true
+
+* finishReply():
+  set a waiting flag(self.wait_for_reply) to false
+
+* waitForReply():
+  wait until a wairing flag(self.wait_for_reply) turn to false
+
+* sendData( msg, flag=1):
+  send message via self.dataAdaptor. If flag == 1 then set self.wait_for_reply to True 
+
+* terminate():
+  terminate read threads and close socket
+
+* exit():
+  terminate current python process
+
+* getService(name):
+   get named service which is already connected
+
+* disconnectToService(name):
+   disconnect named service 
+
 ------------------------------------------------------------
 sig.SigController
 -------------------
@@ -27,68 +95,153 @@ Variables
 Methods
 ^^^^^^^^
 * __init__(self, name, host="localhost", port=9000, ecclass=None):
+  Constructor, Controller required agent name, hostname and port number of the
+server
 
 * getName():
+  return the agent name
 
 * getMarshaller():
+  return self.cmdbuf
+  As defaut, self.cmdbuf is an instance of sigcomm.SigDataCommad()
 
 * setEC( ecclass):
+  set the execution context. Usually any user need not be care about.
 
-* connect():
+* connect(host=None, port=None):
+  connect to agent.
+  if host isn't None, set self.server = host
+  if port isn't None, set self.port = port
 
-* attach():
+* attach(host=None, port=None):
+   connect to the agent
+   in this method, call self.connect(host, port)
+
+* detach():
+   disconnect to the agent.
+   in this method, call self.terminate()
 
 * sendInit():
+   send the initial message to the server.
 
 * checkRequest():
+   wait self.mutex will be unlock, then return self.request_obj
 
-* waitForReply( timeout=10.0):
+* waitForRequestReply( timeout=10.0):
+   wait until self.request_obj turn to be false or timed out.
 
 * setRequest( val):
+   set self.request_obj = val
+   [Note] Both self.request_obj and self.wait_for_reply are flag for reply
+          from server or serive provider. The difference between them is that
+          self.request_obj is for self.cmdAdaptor and self.wait_for_reply is
+          for self.dataAdapor.
 
 * getObj( name=None, waitFlag=1):
+  get a specified agent
 
 * createSimObj( data):
+  This method called cmdHandler to create an instance of SigSimObj.
 
 * invokeOnCollision( data):
+  create SigCollosionEevet from recieved data, then invoke onCollision method...
 
 * sendMsg( to_name, msg, distance=-1.0):
+  send message to specified agent(s)
 
 * broadcastMsg( msg, distance=-1.0):
+   send message to both controlelrs and service providers
 
 * broadcastMsgToSrv( msg):
+   send messge to service providers
 
 * broadcastMsgToCtl( msg, distance=-1.0):
+   send messge to controllers
 
 * broadcast( msg, distance, to):
+   broadcast messge to ...;
+     if 'to' equal to '-1' then send message to both controlelrs and service providers
+     if 'to' equal to '-2' then send message to service providers
+     if 'to' equal to '-3' then send message to controllers
 
 * sendMessageAction( msgBuf):
+   create packet and send message to the server.
+   This method called by 'braocas*' methods
 
-* checkService( name):
+* checkService( name ):
+   check named service is exist or not
 
-* connectToService( name):
+* connectToService( name, port=None ):
+   connect to named service provider
+   if port is None, then search available port, starting at self.port to self.port+9
 
-* setWheelProperty(self, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+* setWheelProperty( lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
                         rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+   set properties of own wheels
+   
 
-* setSimObjWheelProperty(self, obj, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+* setSimObjWheelProperty( obj, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
                         rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+   set properties of specifiled agent's wheels
 
-* setStartTime( tm):
+* differentialWheelsSetSpeed(lvel, rvel):
+   set speeds to own left and right wheeel respectively
+
+* differentialSimObjWheelsSetSpeed( name, lvel, rvel):
+   set speeds to left and right wheeel of a specified object respectively
+
+* setStartTime(tm):
+   store the time to start simulation
 
 * getCurrentTime():
+   get current time in the simulation
 
 * start()
+   start the execution context
 
 * stop():
+   stop the execution context
 
 * onInit(evt):
+  virtual funtion: this method called once to start the execution context
 
 * onAction(evt):
+  virtual funtion : this method called periodically from the execution context 
 
 * onRecvMsg(evt):
+  virtual funtion : this method called when accept message from other agent
 
 * onCollision(evt):
+  virtual funtion : this method called when it occurs the collision with other objects 
+
+==== Not Implemenetd...
+* getAllEntities()
+* getAxleLength()
+* getAxleLength(name)
+* getLastService()
+* getLeftEncoderNoise():
+* getLeftWheelRadius( obj):
+* getRightEncoderNoise():
+* getRightWheelRadius( obj):
+
+* getDataSock() ---> need?
+* getSrvSock() ---> need?
+* getSrvSocks() ---> need?
+* getRand()
+* getRobotObj(name)
+* getSimState()
+* getSimulationTime() ----> getCurrentTime() ?
+* getText()
+* init() ----> sendInit() ?
+* isAttached()
+* isProcessing()
+* loopMain() ---> start()
+* onPostEvent() 
+* onPreEvent() 
+* sendSound(time, to, sound) 
+* setSimState()
+* worldQuickStep(stepsize)
+* worldStep(stepsize)
 
 
 ------------------------------------------------------------
@@ -130,26 +283,26 @@ Variables
 
 Methods
 ^^^^^^^^^^
-* setWheelProperty(self, obj, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+* setWheelProperty(obj, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
                           rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
 
-* differentialWheelsSetSpeed(self, obj, left, right):
+* differentialWheelsSetSpeed(obj, left, right):
 
-* getAxleLength(self):
+* getAxleLength():
 
-* getLeftWheelRadius(self, obj):
+* getLeftWheelRadius( obj):
 
-* getRightWheelRadius(self, obj):
+* getRightWheelRadius( obj):
 
-* getLeftEncoderNoise(self):
+* getLeftEncoderNoise():
 
-* getRightEncoderNoise(self):
+* getRightEncoderNoise():
 
-* getLeftSlipNoise(self):
+* getLeftSlipNoise():
 
-* getRightSlipNoise(self):
+* getRightSlipNoise():
 
-* getCurrentLeftWheelSpeed(self):
+* getCurrentLeftWheelSpeed():
 
-* getCurrentRightWheelSpeed(self):
+* getCurrentRightWheelSpeed():
 

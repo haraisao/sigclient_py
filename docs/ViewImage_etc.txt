@@ -51,11 +51,11 @@ Methods
 
 * captureView(self, cam_id, colorType, imgSize):
 
-* distanceSendor(self, start=0.0, end=255.0, camId=1, cType="GREY8"):
+* distanceSensor(self, start=0.0, end=255.0, camId=1, cType="GREY8"):
 
-* distanceSendor1D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x1"):
+* distanceSensor1D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x1"):
 
-* distanceSendor2D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x240"):
+* distanceSensor2D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x240"):
 
 * sendDSRequest(self, type, start, end, camId, ctypee):
 

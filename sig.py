@@ -196,24 +196,6 @@ class SigDataReader(sigcomm.SigCommReader):
     return
 
   #
-  # Camera...
-  #
-  def getCamFOV(self, camID=1):
-    res = 0.0
-    name = "FOV%d" % camID
-    if name in self.attributs.keys() :
-      red = self.attributes[name].value
-
-    return res
-
-  def getCamAS(self, camID=1):
-    res = 0.0
-    name = "aspectRatio%d" % camID
-    if name in self.attributs.keys() :
-      red = self.attributes[name].value
-
-    return res
-  #
   #  for synchronization
   #
   def setCommand(self, cmd):
@@ -475,6 +457,17 @@ class SigClient:
   def exit(self):
     self.terminate()
 
+  def getService(self, name):
+    if name in  self.services.keys():
+      return self.services[name]
+    return None
+
+  def disconnectToService(self, name):
+    srv = self.getService(name)
+    if srv :
+      srv.terminate()
+      del self.services[name]
+
 #
 #  Communication base class for SIGVerve
 #
@@ -511,13 +504,20 @@ class SigController(SigClient):
   #
   #  connetc to simserver
   #
-  def connect(self):
+  def connect(self, host=None, port=None):
+    if host : 
+      self.server = host
+    if port : 
+      self.port = host
     SigClient.connect(self)
     self.sendInit() 
     self.connected = True
 
-  def attach(self):
-    self.connect()
+  def attach(self, host=None, port=None):
+    self.connect(host, port)
+
+  def detach(self):
+    self.terminate()
 
   #
   #  send initial message to simserver
@@ -647,20 +647,24 @@ class SigController(SigClient):
       self.chkServiceFlag = 0
     return self.chkServiceFlag
 
-  def connectToService(self, name):
+  def connectToService(self, name, port=None):
     try:
       adaptor = self.services[name]
       return ViewService(self, adaptor)
     except:
       sev = None
-      newport = self.port + 1
-      count = 0 
-      res = 0
-      while res != 1 and count < 10:
-        newport += 1
-        srvAdaptor = sigcomm.SocketAdaptor(self.srvReader,self.name+(":srv%d" % newport),self.server,newport)
+      if port :
+        srvAdaptor = sigcomm.SocketAdaptor(self.srvReader,self.name+(":srv%d" % port),self.server, port)
         res = srvAdaptor.bind()
-        count += 1
+      else:
+        newport = self.port + 1
+        count = 0 
+        res = 0
+        while res != 1 and count < 10:
+          newport += 1
+          srvAdaptor = sigcomm.SocketAdaptor(self.srvReader,self.name+(":srv%d" % newport),self.server,newport)
+          res = srvAdaptor.bind()
+          count += 1
 
       if res != 1:
         print "Fail to get service...[%s, %s] "  % (self.name, name)
@@ -728,7 +732,7 @@ class SigController(SigClient):
 
   def differentialWheelsSetSpeed(self, lvel, rvel):
     self.differentialSimObjWheelsSetSpeed(self.name, lvel, rvel)
-    return
+    rea
 
   def differentialSimObjWheelsSetSpeed(self, name, lvel, rvel):
     my = self.getObj(name)
@@ -999,8 +1003,8 @@ class ViewService(SigServiceBase):
   #
   #  Distance Sensor
   #
-  def distanceSendor(self, start=0.0, end=255.0, camId=1, cType="GREY8"):
-    self.sendDSRequest(0, start, end, camId, ctype)
+  def distanceSensor(self, start=0.0, end=255.0, camId=1, cType="GREY8"):
+    self.sendDSRequest(0, start, end, camId, cType)
     data = self.adaptor.recv_data(4, 2.0)
     if data :
       header, ssize = self.adaptor.getParser().unmarshal('HH')
@@ -1014,12 +1018,13 @@ class ViewService(SigServiceBase):
       if distdata is None or len(distdata) != ssize :
         return None
 
-      return distdata[0]
+      return ord(distdata[0])
     
     return None
 
-  def distanceSendor1D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x1"):
-    self.sendDSRequest(1, start, end, camId, ctype)
+  def distanceSensor1D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x1"):
+    self.sendDSRequest(1, start, end, camId, cType)
+    data = self.adaptor.recv_data(4, 2.0)
     if data :
       header, ssize = self.adaptor.getParser().unmarshal('HH')
       if header != 3:
@@ -1040,8 +1045,9 @@ class ViewService(SigServiceBase):
 
     return None
  
-  def distanceSendor2D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x240"):
-    self.sendDSRequest(2, start, end, camId, ctype)
+  def distanceSensor2D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x240"):
+    self.sendDSRequest(2, start, end, camId, cType)
+    data = self.adaptor.recv_data(4, 2.0)
     if data :
       header, ssize = self.adaptor.getParser().unmarshal('HH')
       if header != 3:
@@ -1049,21 +1055,20 @@ class ViewService(SigServiceBase):
         return None
 
       if ssize == 4:
-        ssize = 768000
+        ssize = 76800
         cType = 'GREY8'
         imgSize = '320x240'
 
       imgdata = self.adaptor.recv_data(ssize, 2.0)
       if imgdata is None or len(imgdata) != ssize :
-        print len(imgdata)
         return None
 
       return ViewImage(imgdata, ViewImageInfo('WinBMP', cType, imgSize))
 
     return None
 
-  def sendDSRequest(self, type, start, end, camId, ctypee):
-    msgBuf = "%s,%d,%d,%f,%f," % (self.name, type, cam_id, start, end)
+  def sendDSRequest(self, type, start, end, camId, ctype):
+    msgBuf = "%s,%d,%d,%f,%f," % (self.name, type, camId, start, end)
 
     cmdbuf = self.adaptor.getParser()
     cmdbuf.createMsgCommand(self.command["distance"], msgBuf)
@@ -1179,10 +1184,10 @@ class ViewImageInfo:
   def setColorBitType(self):
     return self.colorType
 
-  def Width(self):
+  def getWidth(self):
     return self.size()[0]
 
-  def Height(self):
+  def getHeight(self):
     return self.size()[1]
 
   def getByteParOnePixel(self):

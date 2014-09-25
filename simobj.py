@@ -318,9 +318,18 @@ class SigSimObj:
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
 
-  def setAxisAndAngle(self, x, y, z, ang):
-    quat = Quat.Quat(x, y, z, ang)
+  def setAxisAndAngle(self, x, y, z, ang, dir=1):
+    if self.dynamics() :
+      return
+
+    if dir :
+      quat = Quat.Quat(x, y, z, ang)
+    else:
+      quat1 = Quat.Quat(x, y, z, ang)
+      quat = self.getRotation().rot * quat1
+       
     self.setRotation(quat.w, quat.x, quat.y, quat.z)
+
     return
 
   def updateRotation(self):
@@ -444,6 +453,24 @@ class SigSimObj:
 
     return self.joints
 
+  #
+  # Camera...
+  #
+  def getCamFOV(self, camID=1):
+    res = 0.0
+    name = "FOV%d" % camID
+    if name in self.attributes.keys() :
+      red = self.attributes[name].value
+
+    return res
+
+  def getCamAS(self, camID=1):
+    res = 0.0
+    name = "aspectRatio%d" % camID
+    if name in self.attributes.keys() :
+      red = self.attributes[name].value
+
+    return res
 #
 #
 #
