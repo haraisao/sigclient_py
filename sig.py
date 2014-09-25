@@ -91,80 +91,80 @@ class SigDataReader(sigcomm.SigCommReader):
   #
   def checkCommand(self):
     len = 0
-    try:
-      cmd = self.command.pop(0)
+#    try:
+    cmd = self.command.pop(0)
 
-      if cmd == sigcomm.cmdDataType['REQUEST_GET_ENTITY_POSITION']:
-        self.setObjPosition(self.buffer)
-        len=self.parser.offset
+    if cmd == sigcomm.cmdDataType['REQUEST_GET_ENTITY_POSITION']:
+      self.setObjPosition(self.buffer)
+      len=self.parser.offset
 
-      elif cmd == sigcomm.cmdDataType['REQUEST_SET_ENTITY_POSITION']:
-        pass
+    elif cmd == sigcomm.cmdDataType['REQUEST_SET_ENTITY_POSITION']:
+      pass
 
-      elif cmd == sigcomm.cmdDataType['REQUEST_GET_ENTITY_ROTATION']:
-        self.setObjRotation(self.buffer)
-        len=self.parser.offset
+    elif cmd == sigcomm.cmdDataType['REQUEST_GET_ENTITY_ROTATION']:
+      self.setObjRotation(self.buffer)
+      len=self.parser.offset
 
-      elif cmd == sigcomm.cmdDataType['REQUEST_CHECK_SERVICE']:
-        self.parser.setBuffer(self.buffer)
-        result,data = self.parser.unmarshal('HH')
-        print "Res",result
-        self.owner.chkServiceFlag = result
-        len=self.parser.offset
+    elif cmd == sigcomm.cmdDataType['REQUEST_CHECK_SERVICE']:
+      self.parser.setBuffer(self.buffer)
+      result,data = self.parser.unmarshal('HH')
+      print "Res",result
+      self.owner.chkServiceFlag = result
+      len=self.parser.offset
 
-      elif cmd == sigcomm.cmdDataType['REQUEST_SET_ENTITY_ROTATION']:
-        pass
+    elif cmd == sigcomm.cmdDataType['REQUEST_SET_ENTITY_ROTATION']:
+      pass
 
-      elif cmd == sigcomm.cmdDataType['REQUEST_GRASP_OBJECT']:
-        self.parser.setBuffer(self.buffer)
-        result, = self.parser.unmarshal('H')
-        len=self.parser.offset
-        if result == 0:
-          print "Success to grasp the object."
-        elif result == 1:
-          print "Fail to grasp, no object found."
-        elif result == 2:
-          print "Already grasp the object "
-        elif result == 3:
-          print "Already grasp an other object "
-        elif result == 4:
-          print "Fail to grasp, out of reach."
-        elif result == 5:
-          print "Fail to grasp, the target is too far."
-        else:
-          print "Unknown ERROR in graspObj"
-
-      elif cmd == sigcomm.cmdDataType['REQUEST_GET_ALL_JOINT_ANGLES']:
-        self.parser.setBuffer(self.buffer)
-        recvSize, jointSize = self.parser.unmarshal('HH')
-        recvSize -= struct.calcsize('HH')
-        msg = self.parser.getRemains(recvSize)
-        if msg is None:
-          print "too short!!"
-          self.command.insert(0, cmd)
-          return
-        else:
-          msg_ar = msg.split(',')
-          obj = self.getSimObj()
-          for i in range(jointSize) :
-            jname = msg_ar[i*2]
-            ang = msg_ar[i*2+1]
-            obj.joints[jname] = float(ang)
-
-      elif cmd == "cmd:%d" % sigcomm.cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT']:
-        print "[INFO] Connect DataPort"
-        pass
-
+    elif cmd == sigcomm.cmdDataType['REQUEST_GRASP_OBJECT']:
+      self.parser.setBuffer(self.buffer)
+      result, = self.parser.unmarshal('H')
+      len=self.parser.offset
+      if result == 0:
+        print "Success to grasp the object."
+      elif result == 1:
+        print "Fail to grasp, no object found."
+      elif result == 2:
+        print "Already grasp the object "
+      elif result == 3:
+        print "Already grasp an other object "
+      elif result == 4:
+        print "Fail to grasp, out of reach."
+      elif result == 5:
+        print "Fail to grasp, the target is too far."
       else:
-        print "cmd ==> %d" % (cmd)
-        self.printPacket(self.buffer)
-        pass
+        print "Unknown ERROR in graspObj"
 
-    except:
-      print "No such command registered: ", cmd
-    #  self.printPacket(self.buffer)
+    elif cmd == sigcomm.cmdDataType['REQUEST_GET_ALL_JOINT_ANGLES']:
+      self.parser.setBuffer(self.buffer)
+      recvSize, jointSize = self.parser.unmarshal('HH')
+      recvSize -= self.parser.calcsize('HH')
+      msg = self.parser.getRemains(recvSize)
+      if msg is None:
+        print "too short!!"
+        self.command.insert(0, cmd)
+        return
+      else:
+        msg_ar = msg.split(',')
+        obj = self.getSimObj()
+        for i in range(jointSize) :
+          jname = msg_ar[i*2]
+          ang = msg_ar[i*2+1]
+          obj.joints[jname] = float(ang)
 
+    elif cmd == "cmd:%d" % sigcomm.cmdDataType['COMM_REQUEST_CONNECT_DATA_PORT']:
+      print "[INFO] Connect DataPort"
+      pass
+
+    else:
+      print "cmd ==> %d" % (cmd)
+      self.printPacket(self.buffer)
+      pass
+
+#    except:
+#      print "No such command registered: ", cmd
+#      self.printPacket(self.buffer)
 #    print "clear Buffer len: ", len
+
     self.clearBuffer(len)
 #    self.clearBuffer()
 
@@ -534,7 +534,7 @@ class SigController(SigClient):
     with self.mutex:
       return self.request_obj
 
-  def waitForReply(self, timeout=10.0):
+  def waitForRequetReply(self, timeout=10.0):
     st=time.time()
     while self.checkRequest() :
       if  time.time() - st > timeout :
@@ -557,7 +557,7 @@ class SigController(SigClient):
       self.cmdbuf.setHeader(sigcomm.cmdDataType['COMM_REQUEST_GET_ENTITY'], name=name)
       self.sendCmd(self.cmdbuf.getEncodedCommand())
       if waitFlag :
-        self.waitForReply(10.0)
+        self.waitForRequetReply(10.0)
         return self.objs[name]
   #
   #  create SimObj, called by the cmdHandler
@@ -641,7 +641,7 @@ class SigController(SigClient):
     msgBuf = "%s,"  % name
     self.cmdbuf.createMsgCommand('REQUEST_CHECK_SERVICE', msgBuf)
     self.sendData(self.cmdbuf.getEncodedDataCommand())
-    if self.waitForReply(10.0) < 0 :
+    if self.waitForRequetReply(10.0) < 0 :
       self.chkServiceFlag = 0
     return self.chkServiceFlag
 

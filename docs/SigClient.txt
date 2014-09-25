@@ -1,0 +1,53 @@
+API List
+===========
+
+sig.SigClient
+-------------------
+Descriptions
+^^^^^^^^^^^^^^
+
+Supers
+^^^^^^^
+   None
+
+Variables
+^^^^^^^^^^^^
+    name = myname
+    cmdAdaptor = None
+    dataAdaptor = None
+    cmdReader = SigCmdReader(self)
+    dataReader = SigDataReader(self)
+    srvReader = SigServiceReader(self)
+    services = {}
+    wait_for_reply = False
+    self.server = host
+    self.port = port
+
+
+Methods
+^^^^^^^^
+* __init__( myname, host="localhost", port=9000):
+
+* setServer( host, port):
+
+* connect():
+
+* sendCmd(msg):
+
+* getAllSockets():
+
+* waitForRequestSocket( timeout=0.1):
+
+* setWaitForReply():
+
+* finishReply():
+
+* waitForReply():
+
+* sendData( msg, flag=1):
+
+* terminate():
+
+* exit():
+
+

@@ -1,0 +1,86 @@
+API List
+===========
+
+------------------------------------------------------------
+sig.SigController
+-------------------
+Descriptions
+^^^^^^^^^^^^^^
+
+Supers
+^^^^^^^
+   sig.SigClient
+
+Variables
+^^^^^^^^^^
+    cmdbuf = sigcomm.SigDataCommand()
+    ec = None
+    objs={}
+    startSimTime = 0.0
+    startTime = time.time()
+    request_obj = False
+    ecClass = sigcomm.SigControllerEC
+    mutex=threading.Lock()
+    chkServiceFlag = 0
+
+
+Methods
+^^^^^^^^
+* __init__(self, name, host="localhost", port=9000, ecclass=None):
+
+* getName():
+
+* getMarshaller():
+
+* setEC( ecclass):
+
+* connect():
+
+* attach():
+
+* sendInit():
+
+* checkRequest():
+
+* waitForReply( timeout=10.0):
+
+* setRequest( val):
+
+* getObj( name=None, waitFlag=1):
+
+* createSimObj( data):
+
+* invokeOnCollision( data):
+
+* sendMsg( to_name, msg, distance=-1.0):
+
+* broadcastMsg( msg, distance=-1.0):
+
+* broadcastMsgToSrv( msg):
+
+* broadcastMsgToCtl( msg, distance=-1.0):
+
+* broadcast( msg, distance, to):
+
+* sendMessageAction( msgBuf):
+
+* checkService( name):
+
+* connectToService( name):
+
+* setStartTime( tm):
+
+* getCurrentTime():
+
+* start()
+
+* stop():
+
+* onInit(evt):
+
+* onAction(evt):
+
+* onRecvMsg(evt):
+
+* onCollision(evt):
+

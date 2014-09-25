@@ -931,7 +931,7 @@ class SigSrvCommand(SigDataCommand):
   def __init__(self, buffer=''):
     SigDataCommand.__init__(self, buffer)
 
-  def createMsgCommand(self, sender, cmd, msg):
+  def createMsgCommand2(self, sender, cmd, msg):
     msgBuf="%s,%d,%s" % (sender, len(msg), msg)
     self.createCommand()
     size = len(msgBuf) + struct.calcsize("HH")

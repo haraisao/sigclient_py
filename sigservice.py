@@ -169,7 +169,7 @@ class SigService(sig.SigClient):
     if to_name in self.controllers.keys():
       adaptor = self.controllers[to_name]
       cmdbuf = adaptor.getParser()
-      cmdbuf.createMsgCommand(self.name, 0x0002, msg)
+      cmdbuf.createMsgCommand2(self.name, 0x0002, msg)
       msg = cmdbuf.getEncodedDataCommand()
       adaptor.send(msg)
       return True

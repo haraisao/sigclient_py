@@ -1,0 +1,98 @@
+API List
+===========
+
+------------------------------------------------------------
+sigservice.SigService
+------------------------
+Descriptions
+^^^^^^^^^^^^^^
+
+Supers
+^^^^^^^
+   sig.SigClient
+
+Variables
+^^^^^^^^^^
+    serverAdaptor = None
+    viewerAdaptor = None
+    controllers = {}
+    entitiesName = []
+    serviceList = []
+    autoExitLoop = False
+    autoExitProc = False
+    onLoop = False
+    ec = None
+    ecClass = SigServiceEC
+
+Methods
+^^^^^^^
+* setEC(ecclass):
+
+* sendMsg(to_name, msg, distance=-1.0):
+
+* sendMsgToCtrl(to_name, msg):
+
+* send(msg, flag=1):
+
+* connectToController(port, name):
+
+* connect(host, port):
+
+* disconnect():
+
+* disconnectFromController(entryName):
+
+* disconnectFromAllController():
+
+* disconnectFromViewer():
+
+* startLoop(intval= -1.0):
+
+* stopLoop():
+
+* connectToViewer(host="localhost", port=11000):
+
+* getIsConnectedView():
+
+* captureView( entryName, camID=1, cType="RGB24", imgSize="320x240"):
+
+* distanceSensor( entryName, offset=0.0, range=255.0, camID=1):
+
+* distanceSensor1D( entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x1"):
+
+* distanceSensor2D( entryName, offset=0.0, range=255.0, camID=1, cType="GREY8", imgSize="320x240"):
+
+* getDepthImage( entryName, offset=0.0, range=255.0, camID=1, dimension=2, cType="GREY8", imgSize="320x240"):
+
+* getName():
+
+* setName( name):
+
+* getNewServiceNum():
+
+* getAllOtherSerives():
+
+* getAllConnectedEntitiesName():
+
+* getControllerSocket( name):
+
+* getConnectedControllerNum():
+
+* setAutoExitLoop( flag):
+
+* setAutoExitProc( flag):
+
+* pushService( data):
+
+* requestToConnect( data):
+
+* requestToDisconnect( data):
+
+* terminateService():
+
+* onInit( evt):
+
+* onRecvMsg( evt):
+
+* onAction( evt):
+

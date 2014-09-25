@@ -1,0 +1,103 @@
+API List
+===========
+------------------------------------------------------------
+sig.SigSimObj
+-------------------
+Descriptions
+^^^^^^^^^^^^^^
+
+
+Supers
+^^^^^^^
+   None
+
+Variables
+^^^^^^^^^^
+    cmdbuf = sigcomm.SigDataCommand()
+    name=name
+    parts = {}
+    attributes = {}
+    joints={}
+    updateTime=0.0
+    controller = ctrl
+
+Methods
+^^^^^^^^
+* __init__(self, name, ctrl):
+
+* getObj(self):
+
+* setAttributes(self, data):
+
+* getName(self):
+
+* setParts(self, data):
+
+* getParts(self, name):
+
+* dynamics(self):
+
+* getPosition(self):
+
+* setCurrentPosition(self, x, y, z):
+
+* setPosition(self, x, y, z):
+
+* updatePosition(self):
+
+* setCurrentRotation(self, qw, qx, qy, qz):
+
+* x(self, val=None):
+
+* y(self, val=None):
+
+* z(self, val=None):
+
+* getRotation(self):
+
+* setRotation(self, qw, qx, qy, qz, abs=1):
+
+* setAxisAndAngle(self, x, y, z, ang):
+
+* updateRotation(self):
+
+* qw(self, val=None):
+
+* qx(self, val=None):
+
+* qy(self, val=None):
+
+* qz(self, val=None):
+
+* setForce(self, fx, fy, fz):
+
+* addForce(self, dfx, dfy, dfz):
+
+* getMass(self):
+
+* setMass(self, val):
+
+* setAccel(self, ax, ay, az):
+
+* setTorque(self, x, y, z):
+
+* setJointAngle(self, joint_name, angle):
+
+* setJointQuaternion(self, joint_name, qw, qx, qy, qz, offset=0):
+
+* addJointTorque(self, joint_name, torque):
+
+* setJointVelocity(self, joint_name, vel, mx):
+
+* setAngularVelocityToJoint(self, joint_name, vel, mx):
+
+* setAngularVelocityToParts(self, name, vel, maxf) :
+
+* getAllJointAngles(self):
+
+* setWheelProperty(self, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                        rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+
+* setSimObjWheelProperty(self, objname, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+                        rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
+

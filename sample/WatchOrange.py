@@ -29,7 +29,7 @@ class WatchController(sig.SigController):
           self.raise_hand = True
     except:
       print "ERROR in anAction"
-      pass
+
     return 1.0 
 
   def onRecvMsg(self, evt):

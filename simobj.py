@@ -10,6 +10,7 @@ import sys
 import os
 import time
 import types
+import math
 #from Quat import *
 import Quat
 #from sigcomm import *
@@ -115,7 +116,7 @@ class SigObjPart(sigcomm.SigMarshaller):
   def getPos(self):
     return self.pos
 
-  def givePosision(self) :
+  def givePosition(self) :
     return self.pos
 
   def pos_val(self, idx, val=None):
@@ -190,6 +191,7 @@ class SigSimObj:
     self.parts = {}
     self.attributes = {}
     self.joints={}
+    self.dynamicsData = {}
     self.updateTime=0.0
     self.controller = ctrl
 
@@ -457,26 +459,26 @@ class SigSimObj:
   def setSimObjWheelProperty(self, objname, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
                              rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
 
-    my = self.getObj(objname)
-    dyn_ctrl = DynamicsConttoller()
+    my = self.controller.getObj(objname)
+    dyn_ctrl = DynamicsController()
     self.dynamicsData[objname] = dyn_ctrl
-    dyn_ctrl.setWheelProperty(my.getName, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+    dyn_ctrl.setWheelProperty(my, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
                              rname, rconsumption, rmax, runit, rnoise, rres, rmaxf)
     return 
 
-  def differentialWheelSetSpeed(self, lvel, rvel):
-    self.differentialSimObjWheelSetSpeed(self.name, lvel, rvel)
+  def differentialWheelsSetSpeed(self, lvel, rvel):
+    self.differentialSimObjWheelsSetSpeed(self.name, lvel, rvel)
     return
 
-  def differentialSimObjWheelSetSpeed(self, name, lvel, rvel):
-    my = self.getObj(name)
+  def differentialSimObjWheelsSetSpeed(self, name, lvel, rvel):
+    my = self.controller.getObj(name)
     dyn_ctrl = self.dynamicsData[name]
-    dyn_ctrl.differentialWheelSetSpeed(name, lvel, rvel)
+    dyn_ctrl.differentialWheelsSetSpeed(my, lvel, rvel)
     return
 #
 #
 #
-class DynamicsConttoller:
+class DynamicsController:
   def __init__(self):
     self.leftWheelName          = None
     self.leftMotorConsumption   = 0.0
@@ -504,7 +506,7 @@ class DynamicsConttoller:
     self.Accueacy  = 0.00000001
     return
 
-  def setWheelProperty(self, objname, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+  def setWheelProperty(self, obj, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
                              rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
     self.leftWheelName          = lname
     self.leftMotorConsumption   = lconsumption
@@ -522,19 +524,19 @@ class DynamicsConttoller:
     self.rightMaxForce          = rmaxf
 
     if lname and rname:
-      pLeft = objname.getParts(lname)
+      pLeft = obj.getParts(lname)
       lx, ly, lz = pLeft.givePosition()
-      pRight = objname.getParts(rname)
+      pRight = obj.getParts(rname)
       rx, ry, rz = pRight.givePosition()
 
       self.axleLength = math.sqrt((rx * rx) + (ry * ry) + (rz * rz))
 
-    self.getLeftWheelRadius(objname)
+    self.getLeftWheelRadius(obj)
     return
   #
   #
   #
-  def differentialWheelSetSpeed(self, obj, left, right):
+  def differentialWheelsSetSpeed(self, obj, left, right):
     if self.leftWheelMaxSpeed < left :
       left = self.leftWheelMaxSpeed
     elif left < -self.leftWheelMaxSpeed :
@@ -576,7 +578,7 @@ class DynamicsConttoller:
   #
   #
   #
-  def getLeftWheelRaius(self, obj):
+  def getLeftWheelRadius(self, obj):
     radius = 0.0
     part = obj.getParts(self.leftWheelName)
     if part.type == 'PARTS_TYPE_CYLINDER' :
@@ -590,7 +592,7 @@ class DynamicsConttoller:
   #
   #
   #
-  def getRightWheelRaius(self, obj):
+  def getRightWheelRadius(self, obj):
     radius = 0.0
     part = obj.getParts(self.rightWheelName)
     if part.type == 'PARTS_TYPE_CYLINDER' :

@@ -1,0 +1,150 @@
+API List
+===========
+
+-------------------------------------------------------
+sig.SigServiceBase
+-------------------
+Descriptions
+^^^^^^^^^^^^^^
+
+Supers
+^^^^^^^
+   None
+
+Variables
+^^^^^^^^^^
+    name = ""
+    owner = owner
+    adaptor = None 
+
+Methods
+^^^^^^^^
+* __init__(owner):
+
+* setName(name):
+
+* setAdaptor(adp):
+
+* setEntityName(name):
+
+------------------------------------------------------------
+sig.ViewService
+-------------------
+Descriptions
+^^^^^^^^^^^^^^
+
+Supers
+^^^^^^^
+   sig.SigServiceBase
+
+Variables
+^^^^^^^^^^
+    adaptor = adaptor 
+    command={"capture":5, "distance":6, "detect": 7, }
+
+
+Methods
+^^^^^^^^
+* __init__(self, owner, adaptor):
+
+* detectEntities(self, cam_id):
+
+* captureView(self, cam_id, colorType, imgSize):
+
+* distanceSendor(self, start=0.0, end=255.0, camId=1, cType="GREY8"):
+
+* distanceSendor1D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x1"):
+
+* distanceSendor2D(self, start=0.0, end=255.0, camId=1, cType="GREY8", imgSize="320x240"):
+
+* sendDSRequest(self, type, start, end, camId, ctypee):
+
+
+------------------------------------------------------------
+sig.ViewImage
+-------------------
+Descriptions
+^^^^^^^^^^^^^^
+
+Supers
+^^^^^^^
+   None
+
+Variables
+^^^^^^^^^^
+    buffer=img
+    info = info
+    image = Image.fromstring(...)
+    fov = 0.
+    asprct_ratio = 4.0/3.0
+
+Methods
+^^^^^^^^
+* __init__(self, img, info):
+
+* getBuffer(self):
+
+* getBufferLength(self):
+
+* saveAsWindowsBMP(self, fname):
+
+* setBitImageAsWindowsBMP(self, bitImage):
+
+* getWidthBytes(self, w, bpp):
+
+* calcBufferSize(self, info):
+
+* getViewImageInfo(self):
+
+* getWidth(self):
+
+* getHeight(self):
+
+* getFOVy(self):
+
+* setFOVy(self, val):
+
+* getFOVx(self):
+
+* getAspectRatio(self):
+
+* setAspectRatio(self, val):
+
+
+------------------------------------------------------------
+sig.ViewImageInfo
+-------------------
+Descriptions
+^^^^^^^^^^^^^^
+
+Supers
+^^^^^^^
+   None
+
+Variables
+^^^^^^^^^^
+    self.fmt=fmt
+    self.colorType = ctype
+    self.imageSize = size
+    self.dataType = None
+
+Methods
+^^^^^^^^
+* __init__(self, fmt, ctype, size):
+
+* type(self):
+
+* size(self):
+
+* setDataType(self):
+
+* setColorBitType(self):
+
+* Width(self):
+
+* Height(self):
+
+* getByteParOnePixel(self):
+
+* getImageSize(self):
+

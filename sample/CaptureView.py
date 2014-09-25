@@ -53,12 +53,15 @@ class RobotController(sig.SigController):
      elif msg == "move" :
        my = self.getObj()
        pos = my.getPosition()
+       print "pos %f %f %f" % (pos.x(), pos.y(), pos.z())
        qy = my.qy()
        theta = 2.0 * math.asin(qy)
+       print "--- %f %f" % (qy, theta)
        dx = 0.0
        dz = 0.0
        dx = math.sin(theta) * self.vel
        dz = math.cos(theta) * self.vel
+       print "--- %d %d" % (dx, dz)
        my.setPosition(pos.x() + dx, pos.y(), pos.z() + dz)
 
      else:

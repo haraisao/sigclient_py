@@ -1,0 +1,108 @@
+=====================================
+  Classes
+====================================
+
+  +-------------------+
+  | threading.Thread  | --------------------- Thread Class
+  +-^-----------------+
+    | +-----------------------+
+    +-| sigcomm.SocketAdaptor | ------------- Socket communication base class
+    | +-^---------------------+
+    |   | +------------------------------+
+    |   +-| sigservice.SigServiceAdaptor |--- Socket communication for SigService
+    |     +------------------------------+
+    |
+    | +-------------------------+
+    +-| sigcomm.SigControllerEC |------------ Execution context for SigController
+    | +-^-----------------------+
+    | +--------------------------+
+    +-| sigservice.SigServicerEC |----------- Execution context for SigService
+      +-^------------------------+
+  
+  +------------------------+
+  | sigcomm.SigCommReader  |----------------- Commnication reader  base class
+  +-^----------------------+
+    | +------------------+
+    +-| sig.SigCmdReader | ------------------ Reader for command communication (oneway?)
+    | +-^----------------+
+    | +-------------------+
+    +-| sig.SigDataReader | ----------------- Reader for data communication ( RPC type?)
+    | +-^-----------------+
+    | +----------------------+
+    +-| sig.SigServiceReader | -------------- Reader for service communication (Synchronous)
+      +-^--------------------+
+
+  +--------------------+
+  | sig.SigCmdHandler  |--------------------- Handler for SigCmdReader
+  +-^------------------+
+  
+  +------------------------+
+  | sig.SigMessageHandler  |----------------- Hadler for message based commnication (for service?)
+  +-^----------------------+
+    
+  +------------------------+
+  | sigcomm.SigMarshaller  |----------------- Data marshalling base class
+  +-^----------------------+
+    | +-------------------------+
+    +-| sigcomm.SigDataCommand  |------------ Data marshalling for data commnucation (var.1 ?)
+    | +-^-----------------------+
+    |   | +-----------------------+
+    |   +-| sigcomm.SigSrvCommand |---------- Data marshalling for service commnucation (var.3 ?) 
+    |     +-----------------------+
+    |
+    | +------------------------+
+    +-| simobj.SigObjAttribute |------------- Attributes for SimObj
+    | +-^----------------------+
+    | +-------------------+
+    +-| simobj.SigObjPart |------------------ Parts of SimObj
+    | +-^-----------------+
+    |
+    | +---------------------------+
+    +-| sigcomm.SigCollisionEvent |---------- Collision Event 
+      +-^-------------------------+
+
+  +----------------------+
+  | sigcomm.SigMsgEvent  |------------------- Message Event
+  +-^--------------------+
+
+  +-------------------+
+  | simobj.SigSimObj  |---------------------- SimObj(Robot or controlable object)
+  +-^-----------------+
+  
+  +----------------------------+
+  | simobj.DynamicsController  |------------- Support class of SimObj (for mobile robot?)
+  +-^--------------------------+
+  
+  +------------------+
+  | simobj.Position  |----------------------- Position for SimObj
+  +-^----------------+
+  
+  +------------------+
+  | simobj.Rotation  |----------------------- Rotation for SimObj
+  +-^----------------+
+
+  +----------------+
+  | sig.SigClient  |------------------------- Base class of client for SIGVerse
+  +-^--------------+
+    | +-------------------+
+    +-| sig.SigController |----------------- Base class of Controller
+    | +-^-----------------+
+    | +-----------------------+
+    +-| sigservice.SigService |------------- Base class of SigService (for Provider?)
+      +-^---------------------+
+  
+  
+  +---------------------+
+  | sig.SigServiceBase  |------------------- Basic consumer of SigService
+  +-^-------------------+
+    | +-----------------+
+    +-| sig.ViewService |------------------- View Service (connect to SIGViewer)
+    | +-^---------------+
+  
+  +----------------+
+  | sig.ViewImage  |----------------------- Image class (use PIL)
+  +-^--------------+
+  +--------------------+
+  | sig.ViewImageInfo  |------------------- Image Information
+  +-^------------------+
+
