@@ -891,6 +891,23 @@ class SigSimObj:
       self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
 
     return 
+  #
+  #
+  #
+  def setWheel(self, radius, distance):
+    name = self.name+','
+    self.cmdbuf.createMsgCommand('REQUEST_SET_WHEEL', name,
+                               ('d', radius), ('d', distance))
+    self.controller.sendData(self.cmdbuf.getEncodedCommand(), 0)
+    return 
+
+  def setWheelVelocity(self, left, right):
+    name = self.name+','
+    self.cmdbuf.createMsgCommand('REQUEST_SET_WHEEL_VELOCITY', name,
+                               ('d', radius), ('d', distance))
+    self.controller.sendData(self.cmdbuf.getEncodedCommand(), 0)
+    return 
+
 #
 #
 #
