@@ -537,9 +537,9 @@ class SigSimObj:
       else:
         pass
 
-       self.cmdbuf.setHeader('COMM_REQUEST_GET_POINTED_OBJECT', name=self.name)
-       self.cmdbuf.marshal('SSS', partName0, partName1, "%d" % typicalType)
-       self.controller.sendData(self.cmdbuf.getEncodedCommand())
+      self.cmdbuf.setHeader('COMM_REQUEST_GET_POINTED_OBJECT', name=self.name)
+      self.cmdbuf.marshal('SSS', partName0, partName1, "%d" % typicalType)
+      self.controller.sendData(self.cmdbuf.getEncodedCommand())
 
     return None
 
@@ -674,8 +674,8 @@ class SigSimObj:
     return vel
 
   def setLinearVelocity(self, x, y, z) :
-    self.cmdbuf.setHeader('COMM_REQUEST_SET_LINEAR_VELOCITY', name=self.name
-                    ('d', x), ('d', y), ('d', z))
+    self.cmdbuf.setHeader('COMM_REQUEST_SET_LINEAR_VELOCITY', name=self.name)
+    self.cmdbuf.marshal('ddd', x, y, z)
     self.controller.sendData(self.cmdbuf.getEncodedCommand(), 0)
 
   #
