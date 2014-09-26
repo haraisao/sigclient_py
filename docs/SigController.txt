@@ -5,6 +5,7 @@ sig.SigClient
 -------------------
 Descriptions
 ^^^^^^^^^^^^^^
+  This class is a base class for controllers or services of SIGVerse. 
 
 Supers
 ^^^^^^^
@@ -22,7 +23,6 @@ Variables
     wait_for_reply = False
     self.server = host
     self.port = port
-
 
 Methods
 ^^^^^^^^
@@ -74,6 +74,8 @@ sig.SigController
 -------------------
 Descriptions
 ^^^^^^^^^^^^^^
+  This class is base classe of controllers.
+  The controller of agent should be inherited this class.
 
 Supers
 ^^^^^^^
@@ -99,8 +101,7 @@ Variables
 Methods
 ^^^^^^^^
 * __init__(self, name, host="localhost", port=9000, ecclass=None):
-  Constructor, Controller required agent name, hostname and port number of the
-server
+  Constructor, Controller required agent name, hostname and port number of the serverx
 
 * getName():
   return the agent name
@@ -222,7 +223,7 @@ server
   return a list of names which can be seen by the mounted camera
 
 * getAxleLength(name=None)
-  return axleLenghth
+  return length of the axle
 
 * getLastService()
   return sevice adaptor which resistered last
@@ -262,25 +263,28 @@ server
 
 ==== Not Implemenetd...
 
-* getDataSock() ---> need?
-* getSrvSock() ---> need?
-* getSrvSocks() ---> need?
-* getRand()
-* init() ----> sendInit() ?
-* loopMain() ---> start()
 * onPostEvent() 
 * onPreEvent() 
 
-* getRobotObj(name)
-* getText()
-* sendSound(time, to, sound) 
+* getText(sound) --> CTSimObj:getText : Vice recoginition
+   The 'sound' is an instance of RawSound. RawSound is consist of sound header and data.
+* sendSound(t, to, sound) --> CTSimObj:sendSound(t, to, sound): 
 
+==== We don't need following functions.
+* getDataSock() ---> return m_dataSock. in our implementation, it is equivalent to self.dataAdaptor.
+* getSrvSock() ---> return m_srvSock. 
+* getSrvSocks() ---> return m_srvSocks.
+* init() ----> This function only set the 'send' function....
+* loopMain() == start()
+* getRand() ----> This function is equal to random.random()
+* getRobotObj(name)  == getObj
 
 ------------------------------------------------------------
 sig.DynamicsController
 -------------------
 Descriptions
 ^^^^^^^^^^^^^^
+  This class operate properties for mobile robot.
 
 Supers
 ^^^^^^^
@@ -315,26 +319,38 @@ Variables
 
 Methods
 ^^^^^^^^^^
-* setWheelProperty(obj, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
+* setWheelProperty(OBJ, lname, lconsumption, lmax, lunit, lnoise, lres, lmaxf, 
                           rname, rconsumption, rmax, runit, rnoise, rres, rmaxf) :
 
-* differentialWheelsSetSpeed(obj, left, right):
+   set properties of OBJ's wheels
+
+* differentialWheelsSetSpeed(OBJ, left, right):
+   set speeds to OBJ's left and right wheeel respectively
 
 * getAxleLength():
+  return length of the axle
 
 * getLeftWheelRadius( obj):
+  get radius of the left wheel
 
 * getRightWheelRadius( obj):
+  get radius of the right wheel
 
 * getLeftEncoderNoise():
+  get encoder noise of the left wheel
 
 * getRightEncoderNoise():
+  get encoder noise of the right wheel
 
 * getLeftSlipNoise():
+  get slip noise of the left wheel
 
 * getRightSlipNoise():
+  get slip noise of the right wheel
 
 * getCurrentLeftWheelSpeed():
+  get current speed of the left wheel
 
 * getCurrentRightWheelSpeed():
+  get current speed of the right wheel
 

@@ -374,7 +374,7 @@ cmdDataType={
         'COMM_RESULT_GET_LINEAR_VELOCITY':60,
         'COMM_REQUEST_ADD_FORCE_TOPARTS':61,
         'COMM_REQUEST_SET_GRAVITY_MODE':62,
-        'COMM_REQUEST_GET_GRAVITY_MODE':53,
+        'COMM_REQUEST_GET_GRAVITY_MODE':63,
         'COMM_RESULT_GET_GRAVITY_MODE':64,
         'COMM_REQUEST_SET_DYNAMICS_MODE':65,
         'COMM_REQUEST_GET_POINTED_OBJECT':66,
@@ -865,6 +865,24 @@ class SigDataCommand(SigMarshaller):
     self.forwardTo = ""
     self.reachRadius = -1
 
+  def checkMsgHeader(self, data=None):
+    try:
+      if data :  self.setBuffer(data)
+      header, size = self.unmarshal("HH")
+      if header == 0xabcd:
+        if size <= len(self.buffer):
+          return True
+        else:
+          print "Error : packet shortage...."
+      else:
+        pass
+
+    except:
+      print "Error in parseCommand"
+
+    self.offset=0
+    return False
+
   #
   # for Header
   #  (type, num_of_packet, sequence_No., foward_flag, forwarding_address, radius_to_reach_msg)
@@ -872,7 +890,7 @@ class SigDataCommand(SigMarshaller):
   def getHeader(self, data=None):
     try:
       if data :  self.setBuffer(data)
-      (self.type, self.packetNum, self.seq, self.forwardFlags,) = self.headerMarshaller.unpack_from(self.buffer)
+      (self.type, self.packetNum, self.seq, self.forwardFlags,) = self.headerMarshaller.unpack_from(self.buffer, self.offset)
       self.offset += self.headerMarshaller.size
       self.forwardTo = self.unmarshalString()
       self.reachRadius = self.unmarshalDouble()

@@ -109,11 +109,34 @@ class SigDataReader(sigcomm.SigCommReader):
     elif cmd == sigcomm.cmdDataType['REQUEST_CHECK_SERVICE']:
       self.parser.setBuffer(self.buffer)
       result,data = self.parser.unmarshal('HH')
-      print "Res",result
       self.owner.chkServiceFlag = result
       len=self.parser.offset
 
     elif cmd == sigcomm.cmdDataType['REQUEST_SET_ENTITY_ROTATION']:
+      pass
+
+    elif cmd == sigcomm.cmdDataType['REQUEST_GET_ISGRASPED']:
+      self.parser.setBuffer(self.buffer)
+      result, = self.parser.unmarshal('B')
+      my = self.getSimObj()
+      my.responseObj = result
+      pass
+
+    elif cmd == sigcomm.cmdDataType['REQUEST_GET_JOINT_ANGLE']:
+      self.parser.setBuffer(self.buffer)
+      result,angle = self.parser.unmarshal('Bd')
+      my = self.getSimObj()
+      my.responseObj = angle
+      pass
+
+    elif cmd in (sigcomm.cmdDataType['REQUEST_GET_JOINT_POSITION'], 
+                 sigcomm.cmdDataType['REQUEST_GET_POINTING_VECTOR'],
+                 sigcomm.cmdDataType['REQUEST_GET_PARTS_POSITION']):
+      self.parser.setBuffer(self.buffer)
+      x, y, z, result = self.parser.unmarshal('dddB')
+      my = self.getSimObj()
+      if result :
+        my.responseObj = [x, y, z]
       pass
 
     elif cmd == sigcomm.cmdDataType['REQUEST_GRASP_OBJECT']:
@@ -163,6 +186,99 @@ class SigDataReader(sigcomm.SigCommReader):
       print "[INFO] Connect DataPort"
       pass
 
+    elif cmd == "cmd:%d" % sigcomm.cmdDataType['COMM_REQUEST_GET_ANGULAR_VELOCITY']:
+#      self.parser.setBuffer(self.buffer)
+      if self.parser.checkMsgHeader(self.buffer):
+        self.parser.getHeader()
+        if self.parser.type == sigcomm.cmdDataType['COMM_RESULT_GET_ANGULAR_VELOCITY']:
+          name, x, y, z = self.parser.unmarshal('Sddd')
+          my = self.getSimObj()
+          if my.name == name:
+#            print "[INFO] GetAngularVelocity: %s: (%f, %f, %f)" % (name, x, y, z) 
+            my.responseObj=[x, y, z]
+          else:
+            print "[ERR] GetAngularVelocity: mismatch name %s, %s" % (my.name, name) 
+        else:
+          print "[ERR] GetAngularVelocity: reply type = %d)" %  self.parser.type 
+      else:
+        print "[ERR] Invalid reply..." 
+      pass
+
+    elif cmd == "cmd:%d" % sigcomm.cmdDataType['COMM_REQUEST_GET_LINEAR_VELOCITY']:
+      if self.parser.checkMsgHeader(self.buffer):
+        self.parser.getHeader()
+        if self.parser.type == sigcomm.cmdDataType['COMM_RESULT_GET_LINEAR_VELOCITY']:
+          name, x, y, z = self.parser.unmarshal('Sddd')
+          my = self.getSimObj()
+          if my.name == name:
+            my.responseObj=[x, y, z]
+          else:
+            print "[ERR] GetLinearVelocity: mismatch name %s, %s" % (my.name, name) 
+        else:
+          print "[ERR] GetLinearVelocity: reply type = %d)" %  self.parser.type 
+      else:
+        print "[ERR] Invalid reply..." 
+      pass
+
+
+    elif cmd == "cmd:%d" % sigcomm.cmdDataType['COMM_REQUEST_GET_GRAVITY_MODE']:
+      if self.parser.checkMsgHeader(self.buffer):
+        self.parser.getHeader()
+        if self.parser.type == sigcomm.cmdDataType['COMM_RESULT_GET_GRAVITY_MODE']:
+          name, val = self.parser.unmarshal('SB')
+          my = self.getSimObj()
+          if my.name == name:
+            my.responseObj=val
+          else:
+            print "[ERR] GetGravityMode: mismatch name %s, %s" % (my.name, name) 
+        else:
+          print "[ERR] GetGravityMode: reply type = %d)" %  self.parser.type 
+      else:
+        print "[ERR] Invalid reply..." 
+      pass
+
+    elif cmd == "cmd:%d" % sigcomm.cmdDataType['COMM_REQUEST_GET_JOINT_FORCE']:
+      if self.parser.checkMsgHeader(self.buffer):
+        self.parser.getHeader()
+        if self.parser.type == sigcomm.cmdDataType['COMM_RESULT_GET_JOINT_FORCE']:
+          name, val = self.parser.unmarshal('SB')
+          my = self.getSimObj()
+          if my.name == name:
+            my.responseObj=val
+          else:
+            print "[ERR] GetGravityMode: mismatch name %s, %s" % (my.name, name) 
+        else:
+          print "[ERR] GetGravityMode: reply type = %d)" %  self.parser.type 
+      else:
+        print "[ERR] Invalid reply..." 
+      pass
+
+    elif cmd == "cmd:%d" % sigcomm.cmdDataType['COMM_REQUEST_GET_POINTED_OBJECT']:
+      if self.parser.checkMsgHeader(self.buffer):
+        self.parser.getHeader()
+        if self.parser.type == sigcomm.cmdDataType['COMM_RESULT_GET_POINTED_OBJECT']:
+          num, = self.parser.unmarshal('H')
+          res = []
+          for i in range(num):
+            name = self.parser.unmarshalString()
+            res.append(name)
+
+          my = self.getSimObj()
+          my.responseObj=res
+        else:
+          print "[ERR] GetPointedObject: reply type = %d)" %  self.parser.type 
+      else:
+        print "[ERR] Invalid reply..." 
+      pass
+
+    elif cmd in (sigcomm.cmdDataType['REQUEST_GET_CAMERA_POSITION'],
+                 sigcomm.cmdDataType['REQUEST_GET_CAMERA_DIRECTION']):
+      self.parser.setBuffer(self.buffer)
+      succ, x, y, z = self.parser.unmarshal("Bddd") 
+      if succ :
+        my = self.getSimObj()
+        my.responseObj=[x, y, z]
+      
     else:
       print "cmd ==> %d" % (cmd)
       self.printPacket(self.buffer)
@@ -518,7 +634,7 @@ class SigController(SigClient):
     if host : 
       self.server = host
     if port : 
-      self.port = host
+      self.port = port
     SigClient.connect(self)
     self.sendInit() 
     self.connected = True
