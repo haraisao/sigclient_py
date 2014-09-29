@@ -15,6 +15,7 @@ import math
 import sigcomm
 #from simobj import *
 import simobj
+from simobj import Position
 
 #
 #  Reader for ControllerCmd

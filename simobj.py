@@ -930,13 +930,17 @@ class Position:
     return self.pos()[n]
 
   def __sub__(self, val):
-    return [self._x - val[0], self._y - val[1], self._z - val[2]]
+    return Position([self._x - val[0], self._y - val[1], self._z - val[2]])
 
   def __add__(self, val):
-    return [self._x - val[0], self._y - val[1], self._z - val[2]]
+    return Position([self._x + val[0], self._y + val[1], self._z + val[2]])
 
   def __div__(self, val):
-    return [self._x / val, self._y / val, self._z / val]
+    return Position([self._x / val, self._y / val, self._z / val])
+
+  def __mul__(self, val):
+    return Position([self._x * val, self._y * val, self._z * val])
+
 
   def x(self, val=None):
     if not val is None:

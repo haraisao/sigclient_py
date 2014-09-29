@@ -10,6 +10,8 @@ import threading
 import sigcomm
 import sig
 
+from simobj import Position
+
 #############################
 #
 #  SigService

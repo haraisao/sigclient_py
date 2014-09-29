@@ -71,6 +71,7 @@ class RobotController(sig.SigController):
         pass
       elif self.state == 4:     
         if evt.time() > self.time :
+
           self.my.setWheelVelocity(0, 0)
           self.my.setJointVelocity("RARM_JOINT1", 0, 0)
           part = self.my.getParts("RARM_LINK7")
@@ -98,7 +99,7 @@ class RobotController(sig.SigController):
       elif self.state == 7:     
         if evt.time() > self.time :
           self.my.setWheelVelocity(0, 0)
-          self.time = self.rotateTowardObj(sig.simobj.Position([0,0,1000]), self.vel, evt.time())
+          self.time = self.rotateTowardObj(sig.Position([0,0,1000]), self.vel, evt.time())
           self.state = 0
 
         pass
@@ -131,7 +132,7 @@ class RobotController(sig.SigController):
 
   def rotateTowardObj(self, pos, velocity, now):
     myPos = self.my.getPosition()
-    pos = sig.simobj.Position(pos - myPos)
+    pos -= myPos
     pos.y(0)
 
     myRot = self.my.getRotation()
@@ -164,7 +165,7 @@ class RobotController(sig.SigController):
 
   def goToObj(self, pos, velocity, range, now):
     myPos = self.my.getPosition()
-    pos = sig.simobj.Position(pos - myPos)
+    pos -= myPos
     pos.y(0)
     distance = pos.length() - range
     vel = self.radius * velocity
