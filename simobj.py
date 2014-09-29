@@ -172,7 +172,7 @@ class SigObjPart(sigcomm.SigMarshaller):
     marshaller = self.controller().getMarshaller()
     marshaller.createMsgCommand('REQUEST_GRASP_OBJECT', msg)
     controller.sendData(marshaller.getEncodedDataCommand())
-
+    controller.waitForReply()
 
   def releaseObj(self):
     msg = "%s,%s," % (self.owner.getName(), self.name)
@@ -342,6 +342,7 @@ class SigSimObj:
 
   def updatePosition(self):
     name = self.name+','
+    self.controller.targetObjName = self.name
     self.cmdbuf.createMsgCommand('REQUEST_GET_ENTITY_POSITION', name)
     self.controller.sendData(self.cmdbuf.getEncodedDataCommand())
     return
@@ -370,6 +371,7 @@ class SigSimObj:
   def setRotation(self, qw, qx, qy, qz, abs=1):
     self.parts['body'].setQuaternion(qw, qx, qy, qz)
     name = self.name+','
+    self.controller.targetObjName = self.name
     self.cmdbuf.createMsgCommand('REQUEST_SET_ENTITY_ROTATION', name,
                                  ('H', abs), ('d', qw), ('d', qx), ('d', qy), ('d', qz))
 
@@ -898,14 +900,14 @@ class SigSimObj:
     name = self.name+','
     self.cmdbuf.createMsgCommand('REQUEST_SET_WHEEL', name,
                                ('d', radius), ('d', distance))
-    self.controller.sendData(self.cmdbuf.getEncodedCommand(), 0)
+    self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
 
   def setWheelVelocity(self, left, right):
     name = self.name+','
     self.cmdbuf.createMsgCommand('REQUEST_SET_WHEEL_VELOCITY', name,
-                               ('d', radius), ('d', distance))
-    self.controller.sendData(self.cmdbuf.getEncodedCommand(), 0)
+                               ('d', left), ('d', right))
+    self.controller.sendData(self.cmdbuf.getEncodedDataCommand(), 0)
     return 
 
 #
@@ -924,6 +926,18 @@ class Position:
     self._y=pos[1]
     self._z=pos[2]
 
+  def __getitem__(self, n):
+    return self.pos()[n]
+
+  def __sub__(self, val):
+    return [self._x - val[0], self._y - val[1], self._z - val[2]]
+
+  def __add__(self, val):
+    return [self._x - val[0], self._y - val[1], self._z - val[2]]
+
+  def __div__(self, val):
+    return [self._x / val, self._y / val, self._z / val]
+
   def x(self, val=None):
     if not val is None:
       self._x=val
@@ -938,6 +952,30 @@ class Position:
     if not val is None:
       self._z=val
     return self._z
+
+  def pos(self, val=None):
+    if not val is None:
+      self._x=val[0]
+      self._y=val[1]
+      self._z=val[2]
+    return [self._x, self._y, self._z]
+
+  def length(self):
+    return math.sqrt(self._x * self._x + self._y * self._y + self._z * self._z)
+
+  def angle(self, axis):
+    prod = self._x *axis[0] + self._y * axis[1] +self._z * axis[2]
+    v = self.length() * Position(axis).length() 
+    return prod/v
+
+  def normalize(self):
+    nvec = self.__div__(self.length()) 
+    self._x = nvec[0]
+    self._y = nvec[1]
+    self._z = nvec[2]
+    return nvec
+
+
 #
 #
 #
@@ -975,3 +1013,11 @@ class Rotation:
       self._qz=val
     return self._qz
 
+  def rot(self, val=None):
+    if not val is None:
+      self._qw=val[0]
+      self._qx=val[1]
+      self._qy=val[2]
+      self._qz=val[3]
+    return [self._qw, self._qx, self._qy, self._qz]
+   

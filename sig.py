@@ -246,9 +246,9 @@ class SigDataReader(sigcomm.SigCommReader):
           if my.name == name:
             my.responseObj=val
           else:
-            print "[ERR] GetGravityMode: mismatch name %s, %s" % (my.name, name) 
+            print "[ERR] GetJointForce: mismatch name %s, %s" % (my.name, name) 
         else:
-          print "[ERR] GetGravityMode: reply type = %d)" %  self.parser.type 
+          print "[ERR] GetJointForce: reply type = %d)" %  self.parser.type 
       else:
         print "[ERR] Invalid reply..." 
       pass
@@ -295,15 +295,15 @@ class SigDataReader(sigcomm.SigCommReader):
   #
   #  commands...
   # 
-  def getSimObj(self):
-    return self.owner.getObj()
+  def getSimObj(self, name=None):
+    return self.owner.getObj(name)
 
   def setObjPosition(self, data):
     self.parser.setBuffer(data)
     success, x, y, z = self.parser.unmarshal('Bddd')
 
     if success :
-      self.getSimObj().setCurrentPosition(x, y, z)
+      self.getSimObj(self.owner.targetObjName).setCurrentPosition(x, y, z)
     else:
       print "Fail to getPosition" 
     return
@@ -313,7 +313,7 @@ class SigDataReader(sigcomm.SigCommReader):
     success, qw, qx, qy, qz = self.parser.unmarshal('Bdddd')
 
     if success :
-      self.getSimObj().setCurrentRotation(qw, qx, qy, qz)
+      self.getSimObj(self.owner.targetObjName).setCurrentRotation(qw, qx, qy, qz)
     else:
       print "Fail to setObjRotation" 
     return

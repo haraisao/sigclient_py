@@ -559,7 +559,10 @@ class SigControllerEC(threading.Thread):
   def run(self):
     self.controller.onInit(None)
     while self.mainloop:
-      intval = self.controller.onAction(None)
+      ctime=self.controller.getSimulationTime()
+#      ctime=self.controller.getCurrentTime()
+      evt=SigActionEvent(ctime)
+      intval = self.controller.onAction(evt)
       time.sleep(intval)
 
   def stop(self):
@@ -964,6 +967,17 @@ class SigSrvCommand(SigDataCommand):
 #
 # Events
 #
+
+#
+#
+#
+class SigActionEvent:
+  def __init__(self, tm=0):
+    self.current = tm
+
+  def time(self):
+    return self.current    
+
 
 #
 #  Message Event ( sender, size, message, )
