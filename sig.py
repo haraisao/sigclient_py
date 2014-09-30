@@ -1155,6 +1155,13 @@ class SigServiceBase:
   def setEntityName(self, name):
     self.name = name
 
+  def sendMsgToSrv(self, msg):
+    msgBuf = "%s,%d,%s" % (self.name, len(msg), msg)
+    cmdbuf=sigcomm.SigMarshaller('')
+    cmdbuf.createMsgCommand(0x0001, msgBuf)
+    self.adaptor.send( cmdbuf.getEncodedDataCommand() )
+
+
 #
 #  ViewService
 #    SigServiceBase <--- ViewService

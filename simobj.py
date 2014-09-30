@@ -116,6 +116,9 @@ class SigObjPart(sigcomm.SigMarshaller):
   def getPos(self):
     return self.pos
 
+  def getPosition(self):
+    return Position(self.pos)
+
   def givePosition(self) :
     return self.pos
 
@@ -772,7 +775,7 @@ class SigSimObj:
 
   def getCameraViewPoint(self, camID=1):
     if  self.checkCameraID(camID):
-      if getCameraNum() == 1 and camID == 1:
+      if self.getCameraNum() == 1 and camID == 1:
         return [self.attributes["vpx"].value,
                 self.attributes["vpy"].value,
                 self.attributes["vpz"].value]
@@ -786,7 +789,7 @@ class SigSimObj:
 
   def setCameraViewPoint(self, vec, camID=1):
     if  self.checkCameraID(camID):
-      if getCameraNum() == 1 and camID == 1:
+      if self.getCameraNum() == 1 and camID == 1:
         self.attributes["vpx"].value = vec[0]
         self.attributes["vpy"].value = vec[1]
         self.attributes["vpz"].value = vrc[2]
@@ -799,8 +802,8 @@ class SigSimObj:
     return
 
   def getCameraLinkName(self, camID=1):
-    if checkCameraID(self, camID):
-      if getCameraNum() == 1 and camID == 1:
+    if self.checkCameraID(camID):
+      if self.getCameraNum() == 1 and camID == 1:
         return "body"
       else:
         return self.getCameraAttr("elnk" ,camID)
@@ -820,7 +823,7 @@ class SigSimObj:
     return  camID in self.cameraIds
 
   def getCameraAttr(self, fmt, camID):
-    if self.checkCameraID (camID):
+    if self.checkCameraID(camID):
       return self.attributes["%s%d" % (fmt,camID)].value
     else:
       print "No such a camera, id = %d" % camID
@@ -847,7 +850,7 @@ class SigSimObj:
     
   def getCameraViewVector(camID=1):
     if self.checkCameraID(camID):
-      if getCameraNum() == 1 and camID == 1:
+      if self.getCameraNum() == 1 and camID == 1:
         return [self.attributes["vvx"].value,
                 self.attributes["vvx"].value,
                 self.attributes["vvx"].value]
@@ -860,8 +863,8 @@ class SigSimObj:
     return 
 
   def setCameraViewVector(vec, camID=1):
-    if checkCameraID(self, camID):
-      if getCameraNum() == 1 and camID == 1:
+    if self.checkCameraID( camID):
+      if self.getCameraNum() == 1 and camID == 1:
         self.attributes["vvx"].value = vec[0]
         self.attributes["vvy"].value = vec[1]
         self.attributes["vvz"].value = vec[2]
