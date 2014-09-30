@@ -365,7 +365,19 @@ class SigServiceReader(sigcomm.SigCommReader):
   #
   def checkCommand(self):
     try:
-      self.printPacket(self.buffer)
+      self.parser.setBuffer(self.buffer) 
+      header, size = self.parser.unmarshal('HH')
+      if header == 0x0002:
+        if self.owner.getSimState :
+          message = self.parser.getRemains(size-4)
+
+          if message :
+            thr = threading.Thread(target=runOnRecvMsg, args=(self.owner, message))    
+            thr.start()
+          else:
+             print "Fail to call RecvMsg"
+      else:
+        self.printPacket(self.buffer)
     except:
       pess
 
@@ -819,7 +831,7 @@ class SigController(SigClient):
             self.services[name] = srv_adaptor
             srv = ViewService(self, srv_adaptor)
             srv.setEntityName(self.name)
-#            srv_adaptor.start()
+            srv_adaptor.start()
           elif ack == 4:
             print "fail to connect to service [%s]" % name
             srv_adaptor.close()
