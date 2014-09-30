@@ -150,8 +150,10 @@ class RobotController(sig.SigController):
       for i in range(len(with_obj)):
         if mparts[i] == "RARM_LINK7" :
           parts = self.my.getParts("RARM_LINK7")
-          parts.graspObj(with_obj[i])
-          self.grasp = True
+          res = parts.graspObj(with_obj[i])
+          if res == 0:
+            self.grasp = True
+            return
     return
 
   def rotateTowardObj(self, pos, velocity, now):

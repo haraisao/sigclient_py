@@ -170,12 +170,15 @@ class SigObjPart(sigcomm.SigMarshaller):
     return self.quaternion_val(3, val)
 
   def graspObj(self, objname):
-    msg = "%s,%s,%s," % (self.owner.getName(), self.name, objname)
     controller = self.controller()
-    marshaller = self.controller().getMarshaller()
+    marshaller = controller.getMarshaller()
+    controller.grespResult = None
+
+    msg = "%s,%s,%s," % (self.owner.getName(), self.name, objname)
     marshaller.createMsgCommand('REQUEST_GRASP_OBJECT', msg)
     controller.sendData(marshaller.getEncodedDataCommand())
     controller.waitForReply()
+    return controller.graspResult
 
   def releaseObj(self):
     msg = "%s,%s," % (self.owner.getName(), self.name)

@@ -144,6 +144,7 @@ class SigDataReader(sigcomm.SigCommReader):
       self.parser.setBuffer(self.buffer)
       result, = self.parser.unmarshal('H')
       len=self.parser.offset
+
       if result == 0:
         print "Success to grasp the object."
       elif result == 1:
@@ -158,6 +159,7 @@ class SigDataReader(sigcomm.SigCommReader):
         print "Fail to grasp, the target is too far."
       else:
         print "Unknown ERROR in graspObj"
+      self.owner.graspResult = result
 
     elif cmd == sigcomm.cmdDataType['REQUEST_GET_ALL_JOINT_ANGLES']:
       self.parser.setBuffer(self.buffer)
@@ -623,6 +625,7 @@ class SigController(SigClient):
     self.simstate = False
     self.attached = False
     self.simulationTime = 0.0
+    self.graspResult = None
 
   #
   #
