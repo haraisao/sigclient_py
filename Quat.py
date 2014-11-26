@@ -1,5 +1,8 @@
 #
+# Originally this code from 'http://3dengine.org/Quaternions'
 #
+
+
 import math
 
 class Quat:
